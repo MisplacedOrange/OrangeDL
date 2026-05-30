@@ -1,198 +1,117 @@
 # OrangeDL
 
-OrangeDL is a modern Tauri v2 desktop download manager with a Rust backend, React frontend, TailwindCSS styling, Tokio async downloads, Reqwest networking, SQLite persistence, `.part` temporary files, HTTP Range resume support, and a system tray workflow.
+<p align="center">
+  <em>A Windows-first desktop download manager focused on reliable transfers, resume support, and a clean Tauri-based workflow.</em>
+</p>
+
+## Why I made it
+
+I wanted a download manager that stays simple to use while still handling the things that matter in real usage: resumable downloads, persistent history, live progress updates, and downloads that keep running even when the main window is hidden.
+
+OrangeDL is built around that goal. The Rust backend handles download control, persistence, and task management, while the React frontend keeps the desktop experience responsive and easy to manage.
+
+---
 
 ## Features
 
 - Add downloads from HTTP or HTTPS URLs
-- Run multiple downloads concurrently with Tokio tasks
-- Stream file data through Reqwest and async file writes
-- Emit real-time progress, speed, status, and ETA updates to React
-- Pause, resume, cancel, retry, and persist downloads
+- Run multiple downloads concurrently
+- Pause, resume, cancel, and retry downloads
+- Resume partial downloads with HTTP `Range` support when the server allows it
 - Store download state in SQLite under the app data directory
-- Use `.part` files until a transfer completes
-- Resume partial downloads with HTTP `Range` headers
-- Keep transfers running when the main window is hidden
-- Minimize to tray on window close and reopen from the tray
-- Search, filter, and view download history
-- Optional per-download speed limit
+- Use `.part` files until transfers complete
+- Show live progress, speed, status, and ETA updates
+- Search, filter, and review download history
+- Apply optional per-download speed limits
 - Drag and drop URLs into the downloads page
+- Keep downloads running when the window is hidden to the tray
 
-## Project Structure
+---
 
-```text
-.
-├── package.json
-├── src/
-│   ├── App.tsx
-│   ├── main.tsx
-│   ├── index.css
-│   ├── components/
-│   ├── hooks/
-│   ├── lib/
-│   └── pages/
-└── src-tauri/
-    ├── Cargo.toml
-    ├── tauri.conf.json
-    ├── capabilities/
-    └── src/
-        ├── main.rs
-        ├── lib.rs
-        ├── commands/
-        ├── database/
-        ├── downloader/
-        ├── models/
-        └── tray/
-```
+## Installation
 
-## Major Files
+Download the latest release from GitHub:
 
-- `src-tauri/src/downloader/mod.rs`: `DownloadManager`, Tokio task spawning, pause/resume/cancel control, retry logic, speed limiting, `.part` writes, and HTTP Range resume.
-- `src-tauri/src/database/mod.rs`: SQLite connection, schema creation, download CRUD helpers, status updates, and app download-directory resolution.
-- `src-tauri/src/models/mod.rs`: Shared Rust data models for downloads, status values, start requests, database rows, and summaries.
-- `src-tauri/src/commands/mod.rs`: Tauri command boundary used by React through `invoke`.
-- `src-tauri/src/tray/mod.rs`: System tray menu, left-click reopen behavior, and quit action.
-- `src-tauri/src/lib.rs`: Tauri app setup, backend state injection, tray setup, close-to-tray handling, and command registration.
-- `src-tauri/src/main.rs`: Native entry point.
-- `src/lib/tauri.ts`: Typed frontend wrapper for Tauri commands and events.
-- `src/hooks/useDownloads.ts`: React state manager for persisted downloads, event updates, and command actions.
-- `src/hooks/useToasts.ts`: Toast notification state.
-- `src/pages/DownloadsPage.tsx`: Main downloads view with search, filters, drag/drop URL handling, cards, and the add modal.
-- `src/pages/SettingsPage.tsx`: Runtime settings and backend capability overview.
-- `src/components/DownloadCard.tsx`: Download row card with progress, speed, ETA, status, and controls.
-- `src/components/AddDownloadModal.tsx`: URL entry modal with filename override and speed-limit input.
-- `src/index.css`: Dark futuristic shell, grid background, animation, scrollbar, and card polish.
+[![Download from GitHub](https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png)](https://github.com/MisplacedOrange/OrangeDL/releases/latest)
 
-## Requirements
+OrangeDL stores app data in the platform-specific application data directory managed by Tauri. Download records and related metadata are persisted locally on the user's machine.
 
+### Windows trust / signing
+
+Unsigned GitHub-downloaded Windows builds may still show SmartScreen warnings depending on how the release is distributed and signed. If you publish Windows installers, make sure your release process and signature verification steps are documented for users.
+
+### Privacy Policy
+
+OrangeDL is a local desktop application. It does not operate a hosted OrangeDL account system or an OrangeDL-controlled cloud service.
+
+- OrangeDL stores download records, status data, file paths, and related app settings locally on the user's device
+- OrangeDL may connect to third-party servers only when the user provides a download URL or starts a download
+- OrangeDL does not sell user data
+- OrangeDL does not guarantee the privacy, availability, legality, or integrity of third-party content downloaded through the app
+- Users are responsible for reviewing the sources they download from and for complying with applicable laws, license terms, and website policies
+
+Full policy: [docs/privacy-policy.md](docs/privacy-policy.md)
+
+### Terms and Conditions
+
+By using OrangeDL, users agree that they are solely responsible for how they use the application.
+
+- OrangeDL is provided as a general-purpose download tool
+- I do not control, monitor, or direct what users download, share, copy, or distribute with the application
+- I am not responsible for piracy, copyright infringement, unlawful distribution, or other illegal acts committed by users through or alongside the application
+- Users must ensure their use of OrangeDL complies with local law and the rights of content owners
+- The software is provided without warranty, subject to the GNU General Public License and the project terms
+
+Full terms: [docs/terms-and-conditions.md](docs/terms-and-conditions.md)
+
+---
+
+## Building From Source
+
+This project is currently Windows-first. The maintained desktop build path is Tauri v2 with a Rust backend and a React frontend.
+
+Requirements:
 - Node.js 18 or newer
 - Rust stable toolchain
 - Tauri v2 system prerequisites for your OS
 - On Windows, Microsoft WebView2 runtime and Visual Studio Build Tools are typically required
-- Docker, if you want to build Linux release artifacts from the provided container
 
-## Setup
+Setup:
 
-```bash
+```powershell
+git clone https://github.com/MisplacedOrange/OrangeDL.git
+cd OrangeDL
 npm ci
+```
+
+Run the app in development:
+
+```powershell
 npm run tauri dev
 ```
 
 Build a production desktop app:
 
-```bash
+```powershell
 npm run tauri build
 ```
 
-Run frontend-only checks:
+Useful validation commands:
 
-```bash
+```powershell
 npm run build
-```
-
-Run Rust checks:
-
-```bash
 cd src-tauri
 cargo fmt --all -- --check
 cargo check --locked
 cargo clippy --all-targets --locked -- -D warnings
 ```
 
-## Docker Build
+---
 
-The Dockerfile is a Linux release builder for OrangeDL. It installs Node.js, Rust, and the native Tauri/WebKit/GTK libraries required to compile the desktop app, then exports the built bundles.
+## Support the project
 
-```bash
-docker build --target artifacts --output type=local,dest=release/docker .
-```
+You can support the project by starring the repository, reporting issues clearly, and sharing OrangeDL with people who need a desktop download manager.
 
-The same command is available as:
+## License
 
-```bash
-npm run build:docker
-```
-
-The exported files are written under `release/docker/`:
-
-- `bundle/`: Tauri Linux bundle output such as AppImage/deb/rpm files
-- `orangedl-linux`: the raw Linux executable
-- `bootstrapper/orangedl-bootstrap-linux`: the Linux release bootstrapper
-
-Use build args when you need to advance toolchains later:
-
-```bash
-docker build --build-arg RUST_VERSION=1.82 --build-arg NODE_VERSION=20-bookworm --target artifacts --output type=local,dest=release/docker .
-```
-
-## v0.1 Release Flow
-
-The app version is already set to `0.1.0` in `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
-
-1. Commit the release changes.
-2. Create and push the semver tag:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-3. GitHub Actions runs `.github/workflows/release.yml`.
-4. The workflow builds native Tauri bundles on Windows, macOS, and Linux.
-5. The workflow also uploads small bootstrapper binaries:
-   - `orangedl-bootstrap-windows-x64.exe`
-   - `orangedl-bootstrap-macos`
-   - `orangedl-bootstrap-linux-x64`
-6. Review the generated draft release, then publish it.
-
-For end users, the bootstrapper is the small file they download first. When run, it finds the matching OrangeDL installer on the `v0.1.0` GitHub release, downloads it to the temp directory, and launches it.
-
-Advanced bootstrapper usage:
-
-```bash
-npm run build:bootstrapper
-orangedl-bootstrap --tag v0.1.0
-orangedl-bootstrap --download-only --output ./OrangeDL-installer
-orangedl-bootstrap --asset-url https://github.com/MisplacedOrange/OrangeDL/releases/download/v0.1.0/<asset-name>
-```
-
-## Backend Notes
-
-The backend creates a `DownloadManager` during Tauri setup and stores it as managed app state. Each download is saved in SQLite before it starts, then a Tokio task streams the response body to a `.part` file. Pause and cancel requests signal the task with a `CancellationToken`; resume starts a new task and uses the existing `.part` size as the next HTTP `Range` offset.
-
-Progress updates are persisted and sent through an internal Tokio channel. A background event pump emits Tauri events:
-
-- `download-progress`
-- `download-finished`
-- `download-status`
-
-The React frontend listens to those events and updates cards without polling.
-
-## Dependencies
-
-Rust backend dependencies are declared in `src-tauri/Cargo.toml`:
-
-- `tauri` v2 with `tray-icon`
-- `tokio`
-- `reqwest`
-- `sqlx` with SQLite
-- `tokio-util`
-- `dashmap`
-- `futures-util`
-- `serde`
-- `uuid`
-- `url`
-- `chrono`
-- `thiserror`
-
-Frontend dependencies are declared in `package.json`:
-
-- React
-- Vite
-- TailwindCSS
-- Tauri JS API
-- clsx
-
-## Behavior
-
-Closing the main window hides it instead of quitting the process. Downloads continue because the Rust process and Tokio tasks remain alive. Use the tray icon or tray menu to reopen OrangeDL. Use the tray menu quit action to exit the app.
+This project is licensed under the [GNU General Public License v3.0](LICENSE).
