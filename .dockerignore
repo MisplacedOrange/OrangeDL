@@ -1,0 +1,14 @@
+.git
+.github
+node_modules
+dist
+target
+src-tauri/target
+bootstrapper/target
+release
+artifacts
+*.log
+*.tmp
+.DS_Store
+.idea
+.vscode

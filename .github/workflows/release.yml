@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-app:
+    name: Build app (${{ matrix.platform }})
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - ubuntu-22.04
+          - windows-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux Tauri dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            curl \
+            dpkg-dev \
+            fakeroot \
+            file \
+            libcairo2-dev \
+            libgdk-pixbuf-2.0-dev \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libssl-dev \
+            libsoup-3.0-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            pkg-config \
+            rpm \
+            xdg-utils
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and upload Tauri bundles
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "OrangeDL ${{ github.ref_name }}"
+          releaseBody: "OrangeDL desktop release. Download the bootstrapper for your platform, or download the native installer directly."
+          releaseDraft: true
+          prerelease: false
+
+  build-bootstrapper:
+    name: Build bootstrapper (${{ matrix.platform }})
+    runs-on: ${{ matrix.platform }}
+    needs: build-app
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            asset_name: orangedl-bootstrap-linux-x64
+            binary_path: bootstrapper/target/release/orangedl-bootstrap
+          - platform: windows-latest
+            asset_name: orangedl-bootstrap-windows-x64.exe
+            binary_path: bootstrapper/target/release/orangedl-bootstrap.exe
+          - platform: macos-latest
+            asset_name: orangedl-bootstrap-macos
+            binary_path: bootstrapper/target/release/orangedl-bootstrap
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build bootstrapper
+        run: cargo build --manifest-path bootstrapper/Cargo.toml --release --locked
+
+      - name: Package bootstrapper
+        shell: bash
+        run: |
+          mkdir -p bootstrapper-dist
+          cp "${{ matrix.binary_path }}" "bootstrapper-dist/${{ matrix.asset_name }}"
+
+      - name: Upload bootstrapper to release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: false
+          tag_name: ${{ github.ref_name }}
+          files: bootstrapper-dist/*
