@@ -1,0 +1,28 @@
+[package]
+name = "orangedl"
+version = "0.1.0"
+description = "A modern desktop download manager"
+authors = ["Roy Lu"]
+license = "MIT"
+edition = "2021"
+
+[lib]
+name = "orangedl_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+dashmap = "6"
+futures-util = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "gzip", "brotli", "deflate"] }
+serde = { version = "1", features = ["derive"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "sqlite"] }
+tauri = { version = "2", features = ["tray-icon"] }
+thiserror = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "io-util", "sync", "time"] }
+tokio-util = "0.7"
+url = "2"
+uuid = { version = "1", features = ["v4", "serde"] }

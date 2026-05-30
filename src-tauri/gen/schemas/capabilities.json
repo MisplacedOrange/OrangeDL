@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Default permissions for OrangeDL","local":true,"windows":["main"],"permissions":["core:event:allow-listen","core:event:allow-unlisten"]}}
