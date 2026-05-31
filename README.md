@@ -6,10 +6,7 @@
 
 ## Why I made it
 
-I wanted a download manager that stays simple to use while still handling the things that matter in real usage: resumable downloads, persistent history, live progress updates, and downloads that keep running even when the main window is hidden.
-
-OrangeDL is built around that goal. The Rust backend handles download control, persistence, and task management, while the React frontend keeps the desktop experience responsive and easy to manage.
-
+bad wifi
 ---
 
 ## Features
