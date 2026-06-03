@@ -102,13 +102,6 @@ export function AddDownloadModal({
             <h2 className="text-xl font-black text-orange-50">Add download</h2>
             <p className="mt-1 text-sm text-stone-500">Paste a direct HTTP/HTTPS link and optionally cap speed.</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-stone-800 px-3 py-2 text-xs font-black uppercase tracking-wide text-stone-400 transition hover:border-orange-600 hover:bg-stone-900 hover:text-orange-200"
-          >
-            Close
-          </button>
         </div>
 
         <label className="block">

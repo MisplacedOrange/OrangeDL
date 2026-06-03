@@ -97,17 +97,9 @@ input:focus-visible {
 }
 
 .app-mark {
-  display: grid;
-  height: 26px;
-  width: 26px;
-  place-items: center;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: 13px;
-  font-weight: 900;
-  line-height: 1;
+  height: 50px;
+  width: 50px;
+  object-fit: contain;
 }
 
 .client-tabs {

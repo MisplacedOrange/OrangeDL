@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { ToastViewport } from "./components/ToastViewport";
 import { useDownloads } from "./hooks/useDownloads";
 import { useToasts } from "./hooks/useToasts";
+import orangeDlLogo from "./images/OrangeDL.svg";
 import { DownloadsPage } from "./pages/DownloadsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import type { PageId } from "./lib/types";
@@ -61,7 +62,7 @@ export default function App() {
     <div className="app-shell min-h-screen overflow-hidden bg-client text-zinc-100">
       <div className="client-window">
         <nav className="client-tabs" aria-label="Primary navigation">
-          <span className="app-mark" aria-hidden="true">O</span>
+          <img className="app-mark" src={orangeDlLogo} alt="OrangeDL" />
           <button
             type="button"
             onClick={() => setActivePage("downloads")}
