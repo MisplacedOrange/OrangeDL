@@ -4,10 +4,15 @@
   <em>A Windows-first desktop download manager focused on reliable transfers, resume support, and a clean Tauri-based workflow.</em>
 </p>
 
+![Stars](https://img.shields.io/github/stars/misplacedorange/OrangeDL?style=flat-square)
+![License](https://img.shields.io/github/license/misplacedorange/OrangeDL?style=flat-square)
+![Rust](https://img.shields.io/badge/Rust-E43716?style=flat-square&logo=rust&logoColor=white)
+![Tauri](https://img.shields.io/badge/Tauri-FFC107?style=flat-square&logo=tauri&logoColor=24C8DB)
+![Version](https://img.shields.io/badge/Version-v0.2.0-orange?style=flat-square)
+
 ## Why I made it
 
 bad wifi
----
 
 ## Features
 
