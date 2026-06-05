@@ -3,9 +3,11 @@ name = "orangedl-bootstrap"
 version = "0.1.0"
 edition = "2021"
 description = "Small downloader bootstrapper for OrangeDL release assets"
-license = "MIT"
+license = "GPL-3.0-only"
 
 [dependencies]
 anyhow = "1"
+hex = "0.4"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
