@@ -4,11 +4,11 @@
   <em>A Windows-first desktop download manager focused on reliable transfers, resume support, and a clean Tauri-based workflow.</em>
 </p>
 
-![Stars](https://img.shields.io/github/stars/misplacedorange/OrangeDL?style=flat-square)
-![License](https://img.shields.io/github/license/misplacedorange/OrangeDL?style=flat-square)
-![Rust](https://img.shields.io/badge/Rust-E43716?style=flat-square&logo=rust&logoColor=white)
-![Tauri](https://img.shields.io/badge/Tauri-FFC107?style=flat-square&logo=tauri&logoColor=24C8DB)
-![Version](https://img.shields.io/badge/Version-v0.2.0-orange?style=flat-square)
+[![Stars](https://img.shields.io/github/stars/misplacedorange/OrangeDL?color=orange)](https://github.com/misplacedorange/OrangeDL/stargazers)
+[![License](https://img.shields.io/github/license/misplacedorange/OrangeDL?color=orange)](https://github.com/misplacedorange/OrangeDL/blob/main/LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-Language-E43716?logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![Tauri](https://img.shields.io/badge/Tauri-Framework-FFC107?logo=tauri&logoColor=white)](https://tauri.app)
+[![Version](https://img.shields.io/badge/Version-v0.2.0-orange)](https://github.com/misplacedorange/OrangeDL/releases)
 
 ## Why I made it
 
