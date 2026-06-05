@@ -1,0 +1,14 @@
+/* ==========================================================================
+   App Utilities
+
+   Keep this file limited to small reusable helpers. Component-sized rules
+   belong in the relevant component stylesheet.
+   ========================================================================== */
+
+.bg-client {
+  background: var(--color-app-background);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

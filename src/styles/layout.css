@@ -1,0 +1,105 @@
+/* ==========================================================================
+   Application Layout, Navigation, And Shared Controls
+   ========================================================================== */
+
+.app-shell {
+  display: grid;
+  padding: 0;
+}
+
+.client-window {
+  display: flex;
+  height: 100dvh;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-window-background);
+}
+
+.app-mark {
+  height: 50px;
+  width: 50px;
+  object-fit: contain;
+}
+
+/* Shared button primitives */
+
+.primary-button,
+.secondary-button {
+  height: 38px;
+  border-radius: var(--radius-control);
+  font-size: 13px;
+  font-weight: 900;
+  padding: 0 14px;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.primary-button {
+  border: 1px solid var(--color-brand-primary);
+  background: var(--color-brand-primary);
+  color: var(--color-brand-ink);
+}
+
+.primary-button:hover {
+  border-color: var(--color-brand-primary-hover);
+  background: var(--color-brand-primary-hover);
+}
+
+.secondary-button {
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.secondary-button:hover {
+  border-color: var(--color-brand-primary);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+
+.add-download-button:active,
+.primary-button:active,
+.secondary-button:active,
+.row-action:active {
+  transform: translateY(1px);
+}
+
+/* Top navigation */
+
+.client-tabs {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-app-background);
+  padding: 12px 16px 0;
+}
+
+.client-tabs button {
+  height: 40px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  padding: 0 14px;
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.client-tabs button:hover,
+.client-tabs button.active {
+  border-color: var(--color-brand-primary);
+  background: var(--color-surface-panel);
+  color: var(--color-text-primary);
+}

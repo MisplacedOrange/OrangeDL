@@ -1,0 +1,123 @@
+/* ==========================================================================
+   Theme Tokens And Browser Defaults
+
+   Keep raw color values in this file. Component styles should reference these
+   semantic tokens instead of assigning one-off colors to individual elements.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* Brand color roles */
+  --color-brand-primary: #f97316;
+  --color-brand-primary-hover: #fb923c;
+  --color-brand-ink: #160b04;
+
+  /* Surface color roles */
+  --color-app-background: #090806;
+  --color-window-background: #0f0d0a;
+  --color-surface-panel: #15110d;
+  --color-surface-raised: #1d160f;
+  --color-surface-row: #100d0a;
+  --color-surface-row-muted: #120f0b;
+  --color-surface-progress-track: #251c14;
+
+  /* Border color roles */
+  --color-border-subtle: #2d2117;
+  --color-border-strong: #4b321f;
+  --color-border-progress: #4d3928;
+
+  /* Text color roles */
+  --color-text-primary: #f4ede6;
+  --color-text-secondary: #aa927d;
+  --color-text-tertiary: #75665a;
+  --color-text-accent: var(--color-brand-primary-hover);
+
+  /* State color roles */
+  --color-danger: #f87171;
+  --color-danger-surface: #22100d;
+  --color-danger-border: #7f1d1d;
+  --color-danger-text: #fecaca;
+
+  /* Accessibility color roles */
+  --color-focus-ring: #fdba74;
+  --color-focus-shadow: rgba(249, 115, 22, 0.28);
+
+  /* Specialized UI roles */
+  --color-scrollbar-track: #100d0a;
+  --color-scrollbar-thumb: #5a3a20;
+  --color-file-complete-border: #5d4634;
+  --color-file-complete-surface: #221a14;
+
+  /* Layout, typography, and motion tokens */
+  --font-app: "Bahnschrift", "Aptos", "Segoe UI Variable", "Segoe UI", sans-serif;
+  --download-grid-columns: minmax(280px, 1fr) 90px minmax(210px, 270px) 110px 120px 190px;
+  --download-grid-min-width: 940px;
+  --radius-control: 10px;
+  --radius-panel: 16px;
+  --transition-fast: 120ms ease;
+
+  background: var(--color-app-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-app);
+  font-synthesis: none;
+  text-rendering: geometricPrecision;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--color-app-background);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  user-select: none;
+}
+
+:where(
+  button,
+  input,
+  select,
+  textarea,
+  a[href],
+  summary,
+  [role="button"],
+  [role="menuitem"],
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px var(--color-focus-shadow);
+}
+
+::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid var(--color-scrollbar-track);
+  border-radius: 999px;
+  background: var(--color-scrollbar-thumb);
+}

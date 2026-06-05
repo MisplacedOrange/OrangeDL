@@ -1,0 +1,41 @@
+/* ==========================================================================
+   Responsive Layout
+
+   Breakpoints are intentionally centralized so layout collapse behavior can be
+   reviewed without scanning every component stylesheet.
+   ========================================================================== */
+
+@media (max-width: 980px) {
+  .download-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-chip,
+  .add-download-button {
+    justify-self: stretch;
+  }
+
+  .filter-chip button {
+    flex: 1;
+  }
+
+  .download-overview,
+  .settings-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .download-overview,
+  .settings-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-header {
+    flex-direction: column;
+  }
+
+  .drop-zone {
+    min-height: 70px;
+  }
+}
