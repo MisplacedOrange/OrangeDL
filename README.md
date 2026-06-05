@@ -4,12 +4,15 @@
   <em>A Windows-first desktop download manager focused on reliable transfers, resume support, and a clean Tauri-based workflow.</em>
 </p>
 
-[![Stars](https://img.shields.io/github/stars/misplacedorange/OrangeDL?color=orange)](https://github.com/misplacedorange/OrangeDL/stargazers)
-[![License](https://img.shields.io/github/license/misplacedorange/OrangeDL?color=orange)](https://github.com/misplacedorange/OrangeDL/blob/main/LICENSE)
+<div align="center">
+  
+[![Stars](https://img.shields.io/github/stars/isplacedorange/OrangeDL?color=orange)](https://github.com/misplacedorange/OrangeDL/stargazers)
+[![License](https://img.shields.io/github/license/misplacedorange/OrangeDL?color=orange)](https://github.com/MisplacedOrange/OrangeDL/blob/main/LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-Language-E43716?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Tauri](https://img.shields.io/badge/Tauri-Framework-FFC107?logo=tauri&logoColor=white)](https://tauri.app)
 [![Version](https://img.shields.io/badge/Version-v0.2.0-orange)](https://github.com/misplacedorange/OrangeDL/releases)
 
+</div>
 ## Why I made it
 
 bad wifi
