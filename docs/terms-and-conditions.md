@@ -10,6 +10,8 @@ By downloading, installing, using, copying, or distributing OrangeDL, you agree 
 
 OrangeDL is provided as a general-purpose download manager. You may use it only in compliance with applicable law, the rights of content owners, and any terms that apply to the sources you access.
 
+OrangeDL is not intended to bypass digital rights management, paywalls, access controls, account restrictions, rate limits, geographic restrictions, or platform safeguards.
+
 ## Prohibited or user-controlled conduct
 
 You agree that you will not use OrangeDL for unlawful activity, including:
@@ -17,6 +19,7 @@ You agree that you will not use OrangeDL for unlawful activity, including:
 - Copyright infringement or piracy
 - Unauthorized copying or redistribution of protected content
 - Downloading or distributing content in violation of contracts, licenses, or platform terms
+- Attempting to bypass access controls, technical protection measures, or service restrictions
 - Any other illegal or infringing use
 
 You acknowledge that I do not control, supervise, direct, or approve the files, services, or destinations that users choose through OrangeDL.
@@ -34,6 +37,8 @@ I am not responsible for piracy, infringement, misuse, unlawful distribution, or
 ## Third-party content and services
 
 OrangeDL may interact with third-party websites or servers at the user's direction. I am not responsible for the availability, legality, security, accuracy, or content of third-party services or downloads.
+
+You should verify downloaded files before opening or relying on them. OrangeDL does not make third-party files safe, lawful, accurate, or trustworthy.
 
 ## Warranty disclaimer
 

@@ -3,6 +3,7 @@
 debug
 target
 src-tauri/target/
+bootstrapper/target/
 
 # Frontend dependencies and build output
 node_modules/
@@ -23,8 +24,17 @@ dist/
 *.tmp
 .DS_Store
 
-# Important documents and MD files
-*agents
+# Local agent / assistant artifacts
+.claude/
+.codex/
+.agents/
+agents/
+COMMIT.md
+docs/readme-handoff.md
+docs/acceptance-criteria.md
+docs/plan.md
+docs/ux-spec.md
+docs/qa-checklist.md
 
 # RustRover
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

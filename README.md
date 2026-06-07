@@ -1,56 +1,64 @@
 # OrangeDL
 
 <p align="center">
-  <em>A Windows-first desktop download manager focused on reliable transfers, resume support, and a clean Tauri-based workflow.</em>
+  <em>A Windows-first desktop download manager focused on HTTP(S) transfers, local history, and a clean Tauri-based workflow.</em>
 </p>
 
 <div align="center">
   
-[![Stars](https://img.shields.io/github/stars/isplacedorange/OrangeDL?color=orange)](https://github.com/misplacedorange/OrangeDL/stargazers)
+[![Stars](https://img.shields.io/github/stars/misplacedorange/OrangeDL?color=orange)](https://github.com/misplacedorange/OrangeDL/stargazers)
 [![License](https://img.shields.io/github/license/misplacedorange/OrangeDL?color=orange)](https://github.com/MisplacedOrange/OrangeDL/blob/main/LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-Language-E43716?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Tauri](https://img.shields.io/badge/Tauri-Framework-FFC107?logo=tauri&logoColor=white)](https://tauri.app)
-[![Version](https://img.shields.io/badge/Version-v0.2.0-orange)](https://github.com/misplacedorange/OrangeDL/releases)
+[![Status](https://img.shields.io/badge/Status-early%20release-orange)](https://github.com/misplacedorange/OrangeDL/releases)
 
 </div>
-## Why I made it
 
-bad wifi
-
-## Features
+## Current Features
 
 - Add downloads from HTTP or HTTPS URLs
-- Run multiple downloads concurrently
-- Pause, resume, cancel, and retry downloads
-- Resume partial downloads with HTTP `Range` support when the server allows it
-- Store download state in SQLite under the app data directory
-- Use `.part` files until transfers complete
-- Show live progress, speed, status, and ETA updates
+- Queue and run multiple downloads concurrently
+- Use pause, resume, cancel, and retry controls
+- Attempt partial-file resume with HTTP `Range` support when the server allows it
+- Store local download records and app settings in SQLite under the app data directory
+- Write to `.part` files until transfers complete
+- Show progress, speed, status, and ETA when the app has enough transfer information
 - Search, filter, and review download history
 - Apply optional per-download speed limits
 - Drag and drop URLs into the downloads page
-- Keep downloads running when the window is hidden to the tray
+- Keep active transfers running when the main window is hidden to the tray
+
+## Current Limits
+
+OrangeDL is still an early Windows-first project. Before treating a public release as broadly ready, the project still needs stronger downloader integration coverage, release workflow hardening, and installer trust decisions.
+
+- HTTP and HTTPS are the supported download protocols
+- Browser extension integration, torrents, video extraction, credential/cookie-authenticated downloads, cloud sync, and scheduling are not supported
+- Resume behavior depends on the remote server's HTTP `Range` support and may fall back to restarting or failing the transfer
+- Global speed limiting is still being hardened; use per-download limits when exact caps matter
+- Windows installers should be treated as unsigned unless a release explicitly says otherwise
 
 ---
 
 ## Installation
 
-Download the latest release from GitHub:
-
-[![Download from GitHub](https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png)](https://github.com/MisplacedOrange/OrangeDL/releases/latest)
+When a release is available, download it from GitHub.
+**Future plan is to create a setup installer executable.**
 
 OrangeDL stores app data in the platform-specific application data directory managed by Tauri. Download records and related metadata are persisted locally on the user's machine.
 
 ### Windows trust / signing
 
-Unsigned GitHub-downloaded Windows builds may still show SmartScreen warnings depending on how the release is distributed and signed. If you publish Windows installers, make sure your release process and signature verification steps are documented for users.
+Current Windows release artifacts should be treated as unsigned unless the release notes explicitly state that they are Authenticode-signed. The NSIS installer is configured for per-machine installation, so Windows may show a User Account Control prompt and SmartScreen may warn about an unknown publisher.
+
+Verify the published SHA-256 checksum sidecar before installing. A checksum helps confirm that the downloaded file matches the release artifact, but it does not prove publisher identity and does not replace code signing. Release packaging, checksum verification, and Windows QA steps are documented in [docs/release.md](docs/release.md).
 
 ### Privacy Policy
 
 OrangeDL is a local desktop application. It does not operate a hosted OrangeDL account system or an OrangeDL-controlled cloud service.
 
 - OrangeDL stores download records, status data, file paths, and related app settings locally on the user's device
-- OrangeDL may connect to third-party servers only when the user provides a download URL or starts a download
+- OrangeDL may connect to third-party servers when the user starts or manages a download, and the optional bootstrapper may contact GitHub or a user-provided HTTPS asset URL
 - OrangeDL does not sell user data
 - OrangeDL does not guarantee the privacy, availability, legality, or integrity of third-party content downloaded through the app
 - Users are responsible for reviewing the sources they download from and for complying with applicable laws, license terms, and website policies
@@ -110,6 +118,8 @@ cargo fmt --all -- --check
 cargo check --locked
 cargo clippy --all-targets --locked -- -D warnings
 ```
+
+Release packaging and Windows QA steps are documented in [docs/release.md](docs/release.md).
 
 ---
 

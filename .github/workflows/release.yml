@@ -4,50 +4,28 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.2.0)"
+        required: true
 
 permissions:
   contents: write
 
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
 jobs:
   build-app:
-    name: Build app (${{ matrix.platform }})
-    runs-on: ${{ matrix.platform }}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - ubuntu-22.04
-          - windows-latest
-          - macos-latest
+    name: Build app (Windows)
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install Linux Tauri dependencies
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            curl \
-            dpkg-dev \
-            fakeroot \
-            file \
-            libcairo2-dev \
-            libgdk-pixbuf-2.0-dev \
-            libglib2.0-dev \
-            libgtk-3-dev \
-            libssl-dev \
-            libsoup-3.0-dev \
-            libwebkit2gtk-4.1-dev \
-            libxdo-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            pkg-config \
-            rpm \
-            xdg-utils
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -55,22 +33,80 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Setup Rust
+      - name: Setup Rust stable
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
 
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build and upload Tauri bundles
+      - name: Build frontend
+        run: npm run build
+
+      - name: Rust format check
+        run: cargo fmt --all --manifest-path src-tauri/Cargo.toml -- --check
+
+      - name: Rust check
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+
+      - name: Rust clippy
+        run: cargo clippy --all-targets --locked --manifest-path src-tauri/Cargo.toml -- -D warnings
+
+      - name: Build Tauri installer
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "OrangeDL ${{ github.ref_name }}"
-          releaseBody: "OrangeDL desktop release. Download the bootstrapper for your platform, or download the native installer directly."
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: "OrangeDL ${{ env.RELEASE_TAG }}"
+          releaseBody: |
+            ## OrangeDL ${{ env.RELEASE_TAG }}
+
+            ### Installation
+            Download `OrangeDL_*_x64-setup.exe` and run the installer.
+
+            ### Verification
+            A `.sha256` checksum file is provided alongside each artifact. Verify with:
+            ```powershell
+            Get-FileHash OrangeDL_*_x64-setup.exe -Algorithm SHA256
+            ```
+            Compare the output against the contents of the `.sha256` sidecar file.
           releaseDraft: true
           prerelease: false
+
+      - name: Generate checksums for installer artifacts
+        shell: pwsh
+        run: |
+          $outDir = "release-artifacts"
+          New-Item -ItemType Directory -Force $outDir | Out-Null
+
+          $globs = @(
+            "src-tauri/target/release/bundle/nsis/*.exe",
+            "src-tauri/target/release/bundle/msi/*.msi"
+          )
+
+          foreach ($glob in $globs) {
+            $files = Get-ChildItem -Path $glob -ErrorAction SilentlyContinue
+            foreach ($file in $files) {
+              $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLower()
+              "$hash  $($file.Name)" | Set-Content "$outDir\$($file.Name).sha256" -Encoding UTF8
+              Copy-Item $file.FullName "$outDir\$($file.Name)" -Force
+              Write-Host "Checksum for $($file.Name): $hash"
+            }
+          }
+
+      - name: Upload checksums to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          draft: true
+          files: release-artifacts/*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-bootstrapper:
     name: Build bootstrapper (${{ matrix.platform }})
@@ -93,23 +129,53 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
-      - name: Setup Rust
+      - name: Setup Rust stable
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: bootstrapper
+
+      - name: Test bootstrapper
+        run: cargo test --manifest-path bootstrapper/Cargo.toml --locked
+
+      - name: Bootstrapper clippy
+        run: cargo clippy --manifest-path bootstrapper/Cargo.toml --all-targets --locked -- -D warnings
 
       - name: Build bootstrapper
         run: cargo build --manifest-path bootstrapper/Cargo.toml --release --locked
 
-      - name: Package bootstrapper
+      - name: Compute bootstrapper checksum (Unix)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           mkdir -p bootstrapper-dist
           cp "${{ matrix.binary_path }}" "bootstrapper-dist/${{ matrix.asset_name }}"
+          sha256sum "bootstrapper-dist/${{ matrix.asset_name }}" | \
+            awk '{print $1 "  ${{ matrix.asset_name }}"}' \
+            > "bootstrapper-dist/${{ matrix.asset_name }}.sha256"
+
+      - name: Compute bootstrapper checksum (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force bootstrapper-dist | Out-Null
+          Copy-Item "${{ matrix.binary_path }}" "bootstrapper-dist/${{ matrix.asset_name }}"
+          $hash = (Get-FileHash "bootstrapper-dist/${{ matrix.asset_name }}" -Algorithm SHA256).Hash.ToLower()
+          "$hash  ${{ matrix.asset_name }}" | Set-Content "bootstrapper-dist/${{ matrix.asset_name }}.sha256" -Encoding UTF8
 
       - name: Upload bootstrapper to release
         uses: softprops/action-gh-release@v2
         with:
           draft: true
           prerelease: false
-          tag_name: ${{ github.ref_name }}
-          files: bootstrapper-dist/*
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: |
+            bootstrapper-dist/${{ matrix.asset_name }}
+            bootstrapper-dist/${{ matrix.asset_name }}.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

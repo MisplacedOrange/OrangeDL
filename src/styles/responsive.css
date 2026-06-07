@@ -20,14 +20,29 @@
   }
 
   .download-overview,
-  .settings-metrics {
+  .settings-metrics,
+  .settings-grid-two {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .queue-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .slot-rail {
+    grid-column: 1 / -1;
+  }
+
+  .download-statusbar {
+    gap: 8px;
   }
 }
 
 @media (max-width: 640px) {
   .download-overview,
-  .settings-metrics {
+  .settings-metrics,
+  .settings-grid-two,
+  .queue-strip {
     grid-template-columns: 1fr;
   }
 
@@ -37,5 +52,16 @@
 
   .drop-zone {
     min-height: 70px;
+  }
+
+  .download-statusbar {
+    height: auto;
+    flex-wrap: wrap;
+    padding-block: 10px;
+  }
+
+  .settings-inline {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

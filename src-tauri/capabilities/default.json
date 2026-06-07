@@ -3,5 +3,17 @@
   "identifier": "default",
   "description": "Default permissions for OrangeDL",
   "windows": ["main"],
-  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:event:allow-emit",
+    "dialog:allow-open",
+    "notification:allow-notify",
+    "notification:allow-show",
+    "notification:allow-request-permission",
+    "notification:allow-is-permission-granted",
+    "notification:allow-check-permissions",
+    "deep-link:allow-get-current",
+    "deep-link:allow-register"
+  ]
 }

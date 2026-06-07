@@ -36,7 +36,19 @@
 }
 
 .settings-card {
+  display: grid;
+  gap: 18px;
   padding: 20px;
+}
+
+.settings-group {
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-bottom: 18px;
+}
+
+.settings-group:last-of-type {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 .settings-section-title {
@@ -101,6 +113,16 @@
     background var(--transition-fast);
 }
 
+.settings-field select {
+  height: 44px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  outline: 0;
+  background: var(--color-window-background);
+  color: var(--color-text-primary);
+  padding: 0 12px;
+}
+
 .settings-field input:focus {
   border-color: var(--color-brand-primary);
   background: var(--color-surface-row-muted);
@@ -143,6 +165,45 @@
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
+}
+
+.settings-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-inline input {
+  min-width: 0;
+  flex: 1;
+}
+
+.settings-inline--wrap {
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.settings-inline a {
+  color: var(--color-text-accent);
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.settings-inline a:hover {
+  text-decoration: underline;
+}
+
+.settings-grid-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.settings-result {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .settings-note {
@@ -202,4 +263,18 @@
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.first-run-panel {
+  width: min(560px, 100%);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-panel);
+  padding: 22px;
+}
+
+.first-run-panel h2 {
+  color: var(--color-text-primary);
+  font-size: 20px;
+  font-weight: 900;
 }
