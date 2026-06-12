@@ -2,36 +2,72 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+    paths:
+      - "package.json"
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Release tag (e.g. v0.2.0)"
-        required: true
+      version:
+        description: "Version to release (e.g. 1.2.0). Defaults to version in package.json."
+        required: false
 
 permissions:
   contents: write
 
-env:
-  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-
 jobs:
+  # ── Read the version from package.json and bail early if the tag already
+  #    exists (i.e. this version was already released).
+  check:
+    name: Check release version
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.meta.outputs.should_release }}
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version and check tag
+        id: meta
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION=$(node -p "require('./package.json').version")
+          fi
+          TAG="v$VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG"         >> $GITHUB_OUTPUT
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            echo "Tag $TAG already exists — skipping release."
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+
+  # ── Build the Tauri app and upload the Windows installer + portable exe.
   build-app:
     name: Build app (Windows)
     runs-on: windows-latest
+    needs: check
+    if: needs.check.outputs.should_release == 'true'
+    env:
+      RELEASE_TAG: ${{ needs.check.outputs.tag }}
+      VERSION: ${{ needs.check.outputs.version }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ env.RELEASE_TAG }}
 
-      - name: Capture release commit
+      - name: Read release notes
+        id: notes
         shell: pwsh
         run: |
-          $sha = (git rev-parse HEAD).Trim()
-          "RELEASE_COMMIT=$sha" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $body = Get-Content "docs/release.md" -Raw
+          "body<<EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          $body         | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "EOF"         | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -68,24 +104,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ env.RELEASE_TAG }}
-          releaseName: "OrangeDL ${{ env.RELEASE_TAG }}"
-          releaseBody: |
-            ## OrangeDL ${{ env.RELEASE_TAG }}
-
-            ### Commit
-            Tagged commit: `${{ env.RELEASE_COMMIT }}`
-            Commit link: https://github.com/MisplacedOrange/OrangeDL/commit/${{ env.RELEASE_COMMIT }}
-
-            ### Download
-            Download `OrangeDL.exe` for the portable app or `OrangeDL_*_x64-setup.exe` for the installer.
-
-            ### Verification
-            A `.sha256` checksum file is provided alongside each release artifact. Verify with:
-            ```powershell
-            Get-FileHash OrangeDL.exe -Algorithm SHA256
-            Get-FileHash OrangeDL_*_x64-setup.exe -Algorithm SHA256
-            ```
-            Compare the output against the contents of the `.sha256` sidecar file.
+          releaseName: "OrangeDL v${{ env.VERSION }}"
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
 
@@ -104,7 +124,7 @@ jobs:
           foreach ($glob in $globs) {
             $files = Get-ChildItem -Path $glob -ErrorAction SilentlyContinue
             foreach ($file in $files) {
-              $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLower()
+              $hash      = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLower()
               $assetName = if ($file.Name -ieq "orangedl.exe") { "OrangeDL.exe" } else { $file.Name }
               "$hash  $assetName" | Set-Content "$outDir\$assetName.sha256" -Encoding UTF8
               Copy-Item $file.FullName "$outDir\$assetName" -Force
@@ -130,10 +150,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # ── Build the bootstrapper on all three platforms and upload each binary.
   build-bootstrapper:
     name: Build bootstrapper (${{ matrix.platform }})
     runs-on: ${{ matrix.platform }}
-    needs: build-app
+    needs: [check, build-app]
+    if: needs.check.outputs.should_release == 'true'
+    env:
+      RELEASE_TAG: ${{ needs.check.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -151,8 +175,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Rust stable
         uses: dtolnay/rust-toolchain@stable
