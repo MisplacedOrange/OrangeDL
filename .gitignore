@@ -31,6 +31,9 @@ dist/
 agents/
 plan.md
 
+# Local process / instructions docs — not for the repo
+RELEASING.md
+
 
 
 # RustRover
