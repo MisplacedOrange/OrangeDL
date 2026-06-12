@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
 use crate::database;
 use crate::downloader::DownloadManager;
 use crate::models::ExecutorSummary;

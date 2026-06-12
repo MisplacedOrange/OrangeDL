@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
 import type { Download, DownloadStatus } from "./types";
 
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];

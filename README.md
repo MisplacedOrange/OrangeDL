@@ -127,6 +127,8 @@ Release packaging and Windows QA steps are documented in [docs/release.md](docs/
 
 You can support the project by starring the repository, reporting issues clearly, and sharing OrangeDL with people who need a desktop download manager.
 
+[Buy me a Coffee](https://buymeacoffee.com/misplacedorange)
+
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE).
