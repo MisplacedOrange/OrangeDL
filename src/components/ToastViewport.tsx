@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
 import { clsx } from "clsx";
 import type { Toast } from "../hooks/useToasts";
 
@@ -7,9 +10,9 @@ interface ToastViewportProps {
 }
 
 const tones = {
-  success: "border-emerald-900 bg-emerald-950 text-emerald-200",
-  error: "border-red-900 bg-red-950 text-red-200",
-  info: "border-orange-900 bg-stone-950 text-orange-200",
+  success: "toast--success",
+  error: "toast--error",
+  info: "toast--info",
 };
 
 const labels = {
@@ -24,13 +27,13 @@ export function ToastViewport({ toasts, onDismiss }: ToastViewportProps) {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={clsx("pointer-events-auto animate-panel-in rounded-xl border px-4 py-3", tones[toast.kind])}
+          className={clsx("toast pointer-events-auto animate-panel-in", tones[toast.kind])}
         >
           <div className="flex items-start gap-3">
             <span className="toast-mark">{labels[toast.kind]}</span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold">{toast.title}</p>
-              {toast.message ? <p className="mt-1 truncate text-xs text-stone-400">{toast.message}</p> : null}
+              {toast.message ? <p className="toast-message mt-1 truncate text-xs">{toast.message}</p> : null}
             </div>
             <button type="button" className="toast-dismiss" onClick={() => onDismiss(toast.id)}>
               Dismiss

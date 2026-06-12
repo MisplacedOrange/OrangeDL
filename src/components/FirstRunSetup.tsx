@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { orangeApi } from "../lib/tauri";
 import type { AppSettings, UpdateSettingsRequest } from "../lib/types";
@@ -57,7 +60,7 @@ export function FirstRunSetup({ settings, onSave }: FirstRunSetupProps) {
   }
 
   return (
-    <div className="modal-backdrop fixed inset-0 z-50 grid place-items-center bg-black/75 px-4">
+    <div className="modal-backdrop fixed inset-0 z-50 grid place-items-center px-4">
       <form
         onSubmit={handleSubmit}
         className="first-run-panel animate-panel-in"

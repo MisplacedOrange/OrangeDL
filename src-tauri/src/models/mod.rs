@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 
@@ -83,6 +86,7 @@ pub struct AppSettings {
     pub history_retention_days: Option<u32>,
     pub history_max_rows: Option<u32>,
     pub first_run_completed: bool,
+    pub theme: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,6 +118,8 @@ pub struct UpdateSettingsRequest {
     pub history_max_rows: Option<u32>,
     #[serde(default)]
     pub first_run_completed: Option<bool>,
+    #[serde(default)]
+    pub theme: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

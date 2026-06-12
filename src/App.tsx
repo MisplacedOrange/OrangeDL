@@ -1,4 +1,7 @@
-import { useCallback, useState } from "react";
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
+import { useCallback, useEffect, useState } from "react";
 import { FirstRunSetup } from "./components/FirstRunSetup";
 import { ToastViewport } from "./components/ToastViewport";
 import { useDownloads } from "./hooks/useDownloads";
@@ -6,6 +9,7 @@ import { useToasts } from "./hooks/useToasts";
 import orangeDlLogo from "./images/OrangeDL.svg";
 import { DownloadsPage } from "./pages/DownloadsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { applyTheme } from "./lib/themes";
 import type { PageId } from "./lib/types";
 
 export default function App() {
@@ -40,6 +44,10 @@ export default function App() {
     addModalInitialUrl,
     clearOpenAddModal,
   } = useDownloads(pushToast);
+
+  useEffect(() => {
+    applyTheme(settings.theme);
+  }, [settings.theme]);
 
   const runCommand = useCallback(
     async (action: () => Promise<void>) => {
@@ -92,7 +100,7 @@ export default function App() {
   );
 
   return (
-    <div className="app-shell min-h-screen overflow-hidden bg-client text-zinc-100">
+    <div className="app-shell min-h-screen overflow-hidden bg-client">
       <div className="client-window">
         <nav className="client-tabs" aria-label="Primary navigation">
           <img className="app-mark" src={orangeDlLogo} alt="OrangeDL" />
@@ -142,6 +150,7 @@ export default function App() {
               onCleanupHistory={handleCleanupHistory}
               onNavigateToSettings={() => setActivePage("settings")}
               openAddModal={openAddModal}
+              addModalInitialUrl={addModalInitialUrl}
               onAddModalOpened={clearOpenAddModal}
             />
           ) : (

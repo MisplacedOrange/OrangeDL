@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
 use crate::database;
 use crate::models::{
     AppSettings, ChecksumResult, Download, DownloadStatus, ExecutorSummary, PreflightResult,
@@ -181,11 +184,11 @@ impl DownloadManager {
             use tauri_plugin_opener::OpenerExt;
 
             while let Some(download) = progress_rx.recv().await {
-                let _ = app_for_events.emit("download-progress", download.clone());
+                let _ = app_for_events.emit("download-progress", &download);
 
                 match download.status {
                     DownloadStatus::Completed => {
-                        let _ = app_for_events.emit("download-finished", download.clone());
+                        let _ = app_for_events.emit("download-finished", &download);
                         if notifications_enabled(&event_pool, &app_for_events).await {
                             let _ = app_for_events
                                 .notification()
@@ -201,7 +204,7 @@ impl DownloadManager {
                         }
                     }
                     DownloadStatus::Failed => {
-                        let _ = app_for_events.emit("download-status", download.clone());
+                        let _ = app_for_events.emit("download-status", &download);
                         if notifications_enabled(&event_pool, &app_for_events).await {
                             let error = download.error.as_deref().unwrap_or("unknown error");
                             let _ = app_for_events
@@ -213,7 +216,7 @@ impl DownloadManager {
                         }
                     }
                     DownloadStatus::Cancelled | DownloadStatus::Paused => {
-                        let _ = app_for_events.emit("download-status", download.clone());
+                        let _ = app_for_events.emit("download-status", &download);
                     }
                     _ => {}
                 }
@@ -325,6 +328,10 @@ impl DownloadManager {
 
         if let Some(first_run_completed) = request.first_run_completed {
             database::set_first_run_completed(&self.pool, first_run_completed).await?;
+        }
+
+        if let Some(theme) = request.theme.as_deref() {
+            database::set_theme(&self.pool, &normalize_theme(theme)).await?;
         }
 
         let settings = self.app_settings().await?;
@@ -891,17 +898,17 @@ impl DownloadManager {
             return Ok(DownloadExit::Interrupted);
         }
 
-        let mut request = client.get(download_url);
+        let mut request = client.get(download_url.clone());
 
         if downloaded_bytes > 0 {
             request = request.header(RANGE, format!("bytes={downloaded_bytes}-"));
         }
 
-        let response = tokio::select! {
+        let mut response = tokio::select! {
             _ = control.token.cancelled() => return Ok(DownloadExit::Interrupted),
             response = request.send() => response?,
         };
-        let status = response.status();
+        let mut status = response.status();
 
         if status == StatusCode::RANGE_NOT_SATISFIABLE && downloaded_bytes > 0 {
             if let Some(total) = download.total_bytes {
@@ -916,20 +923,14 @@ impl DownloadManager {
             return Err(DownloadError::HttpStatus(status.as_u16()));
         }
 
-        let response_etag = response
-            .headers()
-            .get(ETAG)
-            .and_then(|v| v.to_str().ok())
-            .map(ToOwned::to_owned);
-        let response_last_modified = response
-            .headers()
-            .get(LAST_MODIFIED)
-            .and_then(|v| v.to_str().ok())
-            .map(ToOwned::to_owned);
+        let mut response_etag = header_string(response.headers(), ETAG);
+        let mut response_last_modified = header_string(response.headers(), LAST_MODIFIED);
 
-        let append = downloaded_bytes > 0 && status == StatusCode::PARTIAL_CONTENT;
+        let mut append = downloaded_bytes > 0 && status == StatusCode::PARTIAL_CONTENT;
 
-        // Validate ETag/Last-Modified when resuming — restart if resource changed
+        // Validate ETag/Last-Modified when resuming. If the remote resource
+        // changed, the ranged body would continue a file that no longer
+        // exists on the server, so re-request the full file and start over.
         if append {
             let (stored_etag, stored_lm) = database::get_download_validators(pool, id)
                 .await
@@ -942,7 +943,21 @@ impl DownloadManager {
                 },
             };
             if validators_changed {
+                response = tokio::select! {
+                    _ = control.token.cancelled() => return Ok(DownloadExit::Interrupted),
+                    response = client.get(download_url.clone()).send() => response?,
+                };
+                status = response.status();
+                if !status.is_success() {
+                    return Err(DownloadError::HttpStatus(status.as_u16()));
+                }
+                response_etag = header_string(response.headers(), ETAG);
+                response_last_modified = header_string(response.headers(), LAST_MODIFIED);
+                append = false;
                 downloaded_bytes = 0;
+                // Drop stale validators so a missing header on the new
+                // response cannot leave the old ones in place.
+                let _ = database::clear_validators(pool, id).await;
             }
         }
 
@@ -1313,6 +1328,23 @@ async fn auto_open_folder_on_completion(pool: &SqlitePool, app: &AppHandle) -> b
         .unwrap_or(false)
 }
 
+/// Theme identifiers are stored as short kebab-case slugs; anything else
+/// falls back to the default so a bad import cannot wedge the UI.
+fn normalize_theme(value: &str) -> String {
+    let normalized = value.trim().to_ascii_lowercase();
+    let valid = !normalized.is_empty()
+        && normalized.len() <= 32
+        && normalized
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '-');
+
+    if valid {
+        normalized
+    } else {
+        database::DEFAULT_THEME.to_owned()
+    }
+}
+
 fn trim_version_prefix(value: &str) -> String {
     value.trim().trim_start_matches('v').to_owned()
 }
@@ -1355,6 +1387,13 @@ fn estimate_eta(total_bytes: Option<u64>, downloaded_bytes: u64, speed_bps: f64)
     }
 
     Some(((total - downloaded_bytes) as f64 / speed_bps).ceil() as u64)
+}
+
+fn header_string(headers: &HeaderMap, name: reqwest::header::HeaderName) -> Option<String> {
+    headers
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+        .map(ToOwned::to_owned)
 }
 
 fn content_range_total(headers: &HeaderMap) -> Option<u64> {
@@ -1991,6 +2030,21 @@ mod tests {
     fn backoff_caps_at_120s_for_large_attempts() {
         let d = exponential_backoff_delay(20);
         assert!(d.as_secs() <= 120);
+    }
+
+    // --- normalize_theme ---
+
+    #[test]
+    fn normalize_theme_accepts_kebab_slug() {
+        assert_eq!(normalize_theme(" Creamsicle "), "creamsicle");
+        assert_eq!(normalize_theme("peach-fizz"), "peach-fizz");
+    }
+
+    #[test]
+    fn normalize_theme_rejects_invalid_input() {
+        assert_eq!(normalize_theme(""), database::DEFAULT_THEME);
+        assert_eq!(normalize_theme("../evil theme!"), database::DEFAULT_THEME);
+        assert_eq!(normalize_theme(&"x".repeat(60)), database::DEFAULT_THEME);
     }
 
     // --- download_redirect_policy ---

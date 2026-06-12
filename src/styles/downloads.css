@@ -18,19 +18,20 @@
 
 .filter-chip {
   display: inline-flex;
-  min-height: 36px;
+  min-height: 38px;
   align-items: center;
   overflow: hidden;
   justify-self: start;
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-card) solid var(--color-border-strong);
   border-radius: var(--radius-control);
   background: var(--color-surface-panel);
+  box-shadow: var(--shadow-card);
 }
 
 .filter-chip button {
-  height: 36px;
+  height: 34px;
   border: 0;
-  border-right: 1px solid var(--color-border-subtle);
+  border-right: var(--border-card) solid var(--color-border-strong);
   background: transparent;
   color: var(--color-text-secondary);
   font-size: 13px;
@@ -46,14 +47,14 @@
   border-right: 0;
 }
 
-.filter-chip button:hover,
-.filter-chip button.active {
+.filter-chip button:hover {
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
 }
 
 .filter-chip button.active {
-  color: var(--color-text-accent);
+  background: var(--color-brand-primary);
+  color: var(--color-brand-ink);
 }
 
 .download-search {
@@ -61,9 +62,9 @@
   min-height: 38px;
   align-items: center;
   gap: 10px;
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-card) solid var(--color-border-strong);
   border-radius: var(--radius-control);
-  background: var(--color-surface-panel);
+  background: var(--color-window-background);
   padding: 0 12px;
 }
 
@@ -104,9 +105,10 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid var(--color-brand-primary);
+  border: var(--border-card) solid var(--color-border-strong);
   border-radius: var(--radius-control);
   background: var(--color-brand-primary);
+  box-shadow: var(--shadow-card);
   color: var(--color-brand-ink);
   font-size: 13px;
   font-weight: 900;
@@ -116,12 +118,14 @@
   transition:
     background var(--transition-fast),
     border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
     transform var(--transition-fast);
 }
 
 .add-download-button:hover {
-  border-color: var(--color-brand-primary-hover);
   background: var(--color-brand-primary-hover);
+  box-shadow: var(--shadow-card-hover);
+  transform: translate(-1px, -1px);
 }
 
 /* Queue controls */
@@ -150,45 +154,39 @@
   transition:
     background var(--transition-fast),
     border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
     color var(--transition-fast);
 }
 
-.queue-btn--pause {
-  border: 1px solid var(--color-border-strong);
+.queue-btn--pause,
+.queue-btn--retry {
+  border: var(--border-card) solid var(--color-border-strong);
   background: var(--color-surface-panel);
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
 }
 
-.queue-btn--pause:hover {
-  border-color: var(--color-brand-primary);
+.queue-btn--pause:hover,
+.queue-btn--retry:hover {
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-card);
   color: var(--color-text-accent);
 }
 
 .queue-btn--resume {
-  border: 1px solid var(--color-brand-primary);
-  background: transparent;
-  color: var(--color-text-accent);
+  border: var(--border-card) solid var(--color-border-strong);
+  background: var(--color-brand-primary);
+  color: var(--color-brand-ink);
 }
 
 .queue-btn--resume:hover {
-  background: var(--color-surface-raised);
-}
-
-.queue-btn--retry {
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface-panel);
-  color: var(--color-text-secondary);
-}
-
-.queue-btn--retry:hover {
-  border-color: var(--color-brand-primary);
-  color: var(--color-text-accent);
+  background: var(--color-brand-primary-hover);
+  box-shadow: var(--shadow-card);
 }
 
 .queue-btn--clear {
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-card) solid var(--color-border-subtle);
   background: transparent;
-  color: var(--color-text-tertiary);
+  color: var(--color-text-secondary);
 }
 
 .queue-btn--clear:hover {
@@ -205,7 +203,7 @@
 }
 
 .download-state-strip span {
-  border: 1px solid var(--color-border-strong);
+  border: var(--border-card) solid var(--color-border-strong);
   border-radius: var(--radius-control);
   background: var(--color-surface-panel);
   color: var(--color-text-secondary);
@@ -220,7 +218,7 @@
   flex-shrink: 0;
   align-items: center;
   gap: 12px;
-  border-block: 1px solid var(--color-border-subtle);
+  border-block: var(--border-card) solid var(--color-border-strong);
   background: var(--color-window-background);
   padding: 10px 16px;
 }
@@ -252,14 +250,13 @@
 }
 
 .slot-rail span {
-  height: 10px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 999px;
+  height: 12px;
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-tag);
   background: var(--color-surface-progress-track);
 }
 
 .slot-rail span.filled {
-  border-color: var(--color-brand-primary);
   background: var(--color-brand-primary);
 }
 
@@ -274,9 +271,10 @@
 }
 
 .download-overview-stat {
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 12px;
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-panel);
   background: var(--color-surface-panel);
+  box-shadow: var(--shadow-card);
   padding: 10px 12px;
 }
 
@@ -315,7 +313,7 @@
 
 .download-table-header {
   height: 30px;
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: var(--border-card) solid var(--color-border-strong);
   color: var(--color-text-secondary);
   font-size: 12px;
   font-weight: 900;
@@ -325,24 +323,26 @@
 
 .download-table-body {
   display: grid;
-  gap: 7px;
-  padding-top: 8px;
+  gap: 8px;
+  padding: 8px 4px 12px 0;
 }
 
 .download-table-body.is-virtual {
-  gap: 7px;
+  gap: 8px;
 }
 
 .download-row {
-  border: 1px solid var(--color-border-subtle);
-  border-left: 4px solid transparent;
+  border: var(--border-card) solid var(--color-border-strong);
+  border-left: 5px solid var(--color-border-strong);
   border-radius: var(--radius-control);
   background: var(--color-surface-row);
+  box-shadow: var(--shadow-card);
   color: var(--color-text-primary);
   overflow: hidden;
   transition:
     background var(--transition-fast),
-    border-color var(--transition-fast);
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .download-row:hover,
@@ -358,7 +358,7 @@
 
 .download-row.is-drag-over {
   border-color: var(--color-brand-primary);
-  box-shadow: inset 0 0 0 1px var(--color-brand-primary);
+  box-shadow: inset 0 0 0 2px var(--color-brand-primary), var(--shadow-card);
 }
 
 .download-row-summary {
@@ -376,10 +376,31 @@
   background: var(--color-surface-raised);
 }
 
+/* Row text cells */
+
+.download-title {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.cell-strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.cell-muted {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 /* Expanded detail panel */
 
 .download-detail {
-  border-top: 1px solid var(--color-border-subtle);
+  border-top: var(--border-card) solid var(--color-border-strong);
   padding: 12px 16px;
   min-width: var(--download-grid-min-width);
 }
@@ -427,10 +448,10 @@
 
 .detail-action {
   height: 28px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--color-text-secondary);
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-window-background);
+  color: var(--color-text-primary);
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.03em;
@@ -439,12 +460,13 @@
   transition:
     background var(--transition-fast),
     border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
     color var(--transition-fast);
 }
 
 .detail-action:hover {
-  border-color: var(--color-brand-primary);
   background: var(--color-surface-raised);
+  box-shadow: var(--shadow-card);
   color: var(--color-text-accent);
 }
 
@@ -477,18 +499,18 @@
 
 .priority-badge {
   flex: 0 0 auto;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 999px;
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-tag);
   font-size: 10px;
   font-weight: 900;
   line-height: 1;
-  padding: 4px 6px;
+  padding: 3px 6px;
   text-transform: uppercase;
 }
 
 .priority-high {
-  border-color: var(--color-brand-primary);
-  color: var(--color-text-accent);
+  background: var(--color-brand-primary);
+  color: var(--color-brand-ink);
 }
 
 .priority-normal {
@@ -496,6 +518,7 @@
 }
 
 .priority-low {
+  border-color: var(--color-border-subtle);
   color: var(--color-text-tertiary);
 }
 
@@ -504,9 +527,9 @@
   height: 24px;
   width: 28px;
   flex: 0 0 auto;
-  border: 1px solid var(--color-brand-primary);
-  border-radius: 5px;
-  background: var(--color-surface-raised);
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-tag);
+  background: var(--color-brand-primary);
   clip-path: polygon(0 20%, 34% 20%, 42% 0, 100% 0, 100% 100%, 0 100%);
 }
 
@@ -537,17 +560,16 @@
 
 .row-progress {
   position: relative;
-  height: 12px;
+  height: 14px;
   overflow: hidden;
-  border: 1px solid var(--color-border-progress);
-  border-radius: 999px;
+  border: var(--border-card) solid var(--color-border-progress);
+  border-radius: var(--radius-tag);
   background: var(--color-surface-progress-track);
 }
 
 .row-progress span {
   position: absolute;
   inset: 0 auto 0 0;
-  border-radius: inherit;
   background: var(--color-brand-primary);
 }
 
@@ -560,9 +582,9 @@
 
 .row-action {
   height: 30px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 8px;
-  background: transparent;
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-window-background);
   color: var(--color-text-primary);
   font-size: 12px;
   font-weight: 900;
@@ -572,25 +594,31 @@
   transition:
     background var(--transition-fast),
     border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
     color var(--transition-fast),
     transform var(--transition-fast);
 }
 
 .row-action:hover {
-  border-color: var(--color-brand-primary);
   background: var(--color-surface-raised);
+  box-shadow: var(--shadow-card);
   color: var(--color-text-accent);
 }
 
 .row-action.primary {
-  border-color: var(--color-brand-primary);
-  color: var(--color-text-accent);
+  background: var(--color-brand-primary);
+  color: var(--color-brand-ink);
+}
+
+.row-action.primary:hover {
+  background: var(--color-brand-primary-hover);
+  color: var(--color-brand-ink);
 }
 
 .row-action.danger:hover {
   border-color: var(--color-danger);
   background: var(--color-danger-surface);
-  color: var(--color-danger);
+  color: var(--color-danger-text);
 }
 
 .download-quick-edit,
@@ -626,8 +654,8 @@
 .download-quick-edit select,
 .checksum-panel input {
   height: 32px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 8px;
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
   background: var(--color-window-background);
   color: var(--color-text-primary);
   font-size: 12px;
@@ -638,8 +666,8 @@
 .checksum-result {
   min-height: 28px;
   align-content: center;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 8px;
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
   color: var(--color-text-secondary);
   font-size: 12px;
   font-weight: 900;
@@ -647,12 +675,14 @@
 }
 
 .checksum-result.is-ok {
-  border-color: #15803d;
-  color: #86efac;
+  border-color: var(--color-success-border);
+  background: var(--color-success-surface);
+  color: var(--color-success-text);
 }
 
 .checksum-result.is-bad {
   border-color: var(--color-danger-border);
+  background: var(--color-danger-surface);
   color: var(--color-danger-text);
 }
 
@@ -668,14 +698,14 @@
 
 .download-skeleton {
   display: grid;
-  gap: 7px;
+  gap: 8px;
   padding-top: 8px;
 }
 
 .skeleton-row {
   height: 60px;
   min-width: var(--download-grid-min-width);
-  border: 1px solid var(--color-border-subtle);
+  border: var(--border-card) solid var(--color-border-subtle);
   border-radius: var(--radius-control);
   background: var(--color-surface-row-muted);
 }
@@ -685,7 +715,7 @@
   min-height: 260px;
   min-width: 100%;
   place-items: center;
-  border: 1px dashed var(--color-border-strong);
+  border: var(--border-card) dashed var(--color-border-strong);
   border-radius: var(--radius-panel);
   background: var(--color-window-background);
   text-align: center;
@@ -699,13 +729,28 @@
   background: var(--color-surface-panel);
 }
 
+.empty-state-title {
+  margin-top: 16px;
+  color: var(--color-text-primary);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.empty-state-sub {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
 .empty-state-icon,
 .drop-icon {
   display: inline-grid;
   place-items: center;
-  border: 1px solid var(--color-brand-primary);
-  border-radius: 999px;
-  color: var(--color-text-accent);
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-brand-primary);
+  box-shadow: var(--shadow-card);
+  color: var(--color-brand-ink);
   font-weight: 900;
 }
 
@@ -729,7 +774,7 @@
   justify-content: center;
   gap: 12px;
   margin: 14px 16px;
-  border: 2px dashed var(--color-border-strong);
+  border: var(--border-card) dashed var(--color-border-strong);
   border-radius: var(--radius-panel);
   background: var(--color-window-background);
   color: var(--color-text-secondary);
@@ -752,11 +797,16 @@
   opacity: 0.6;
 }
 
+.drag-overlay-backdrop {
+  background: var(--color-overlay);
+}
+
 .drag-overlay {
-  border: 1px solid var(--color-brand-primary);
+  border: var(--border-card) solid var(--color-border-strong);
   border-radius: var(--radius-panel);
-  background: var(--color-window-background);
-  color: var(--color-text-accent);
+  background: var(--color-brand-primary);
+  box-shadow: var(--shadow-pop);
+  color: var(--color-brand-ink);
   font-size: 14px;
   font-weight: 900;
   letter-spacing: 0.04em;
@@ -772,19 +822,23 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid var(--color-border-subtle);
+  border-top: var(--border-card) solid var(--color-border-strong);
   background: var(--color-app-background);
   padding: 0 16px;
   font-size: 13px;
   font-weight: 800;
 }
 
+.statusbar-label {
+  color: var(--color-text-secondary);
+}
+
 .speed-pill {
   display: inline-flex;
   height: 27px;
   align-items: center;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 8px;
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
   background: var(--color-surface-panel);
   color: var(--color-text-accent);
   padding: 0 9px;
@@ -807,9 +861,9 @@
 .global-speed-control input {
   height: 28px;
   width: 100px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 8px;
-  background: var(--color-surface-panel);
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-window-background);
   color: var(--color-text-primary);
   outline: 0;
   padding: 0 8px;
@@ -819,14 +873,14 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: hidden;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 12px;
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
 }
 
 .queue-mode button {
   height: 48px;
   border: 0;
-  border-right: 1px solid var(--color-border-subtle);
+  border-right: var(--border-card) solid var(--color-border-strong);
   background: var(--color-surface-row);
   color: var(--color-text-secondary);
   font-size: 12px;
@@ -837,8 +891,12 @@
   border-right: 0;
 }
 
-.queue-mode button.active,
 .queue-mode button:hover {
   background: var(--color-surface-raised);
-  color: var(--color-text-accent);
+  color: var(--color-text-primary);
+}
+
+.queue-mode button.active {
+  background: var(--color-brand-primary);
+  color: var(--color-brand-ink);
 }

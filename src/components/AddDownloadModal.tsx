@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clsx } from "clsx";
 import type { PreflightResult, StartDownloadRequest } from "../lib/types";
@@ -73,6 +76,7 @@ export function AddDownloadModal({
       setUrlText(initialUrl);
       setFileName("");
       setDirectory(defaultDirectory);
+      setSpeedLimit("");
       setQueueMode("bottom");
       setPriority(0);
       setError("");
@@ -186,35 +190,30 @@ export function AddDownloadModal({
   }
 
   return (
-    <div className="modal-backdrop fixed inset-0 z-40 grid place-items-center bg-black/70 px-4">
+    <div className="modal-backdrop fixed inset-0 z-40 grid place-items-center px-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-xl animate-panel-in rounded-2xl border border-stone-800 bg-stone-950 p-5"
+        className="modal-panel w-full max-w-xl animate-panel-in"
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-download-title"
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-orange-400">New transfer</p>
-            <h2 id="add-download-title" className="text-xl font-black text-orange-50">Add download</h2>
-            <p className="mt-1 text-sm text-stone-500">Paste one or more HTTP/HTTPS links</p>
+            <p className="modal-eyebrow">New transfer</p>
+            <h2 id="add-download-title" className="modal-title">Add download</h2>
+            <p className="modal-subtitle mt-1">Paste one or more HTTP/HTTPS links</p>
           </div>
         </div>
 
         <label className="block">
-          <span className="mb-2 block text-xs font-black uppercase tracking-wide text-stone-500">
-            URL{isMulti ? `S (${urls.length})` : ""}
-          </span>
+          <span className="field-label">URL{isMulti ? `S (${urls.length})` : ""}</span>
           <textarea
             value={urlText}
             onChange={(event) => setUrlText(event.target.value)}
             autoFocus
             rows={isMulti ? Math.min(urls.length + 1, 6) : 1}
-            className={clsx(
-              "w-full rounded-xl border border-stone-800 bg-stone-900 px-3 py-3 text-sm text-orange-50 outline-none transition placeholder:text-stone-500 focus:border-orange-500 resize-none leading-5",
-              isMulti && "font-mono text-xs",
-            )}
+            className={clsx("field-input text-sm", isMulti && "font-mono text-xs")}
             placeholder="https://example.com/file.zip"
             aria-label="Download URLs"
           />
@@ -222,7 +221,7 @@ export function AddDownloadModal({
 
         {/* Preflight hint */}
         {singleUrl && (
-          <div className="mt-2 text-xs text-stone-500 min-h-[18px]">
+          <div className="modal-hint mt-2 min-h-[18px]">
             {preflighting && <span>Checking server…</span>}
             {!preflighting && preflight && (
               <span className="flex flex-wrap gap-x-3 gap-y-0.5">
@@ -230,13 +229,13 @@ export function AddDownloadModal({
                   <span>{formatBytes(preflight.contentLength)}</span>
                 )}
                 {preflight.contentLength == null && (
-                  <span className="text-amber-500">Unknown size</span>
+                  <span className="text-warn">Unknown size</span>
                 )}
                 {preflight.contentType && <span>{preflight.contentType}</span>}
                 {preflight.supportsRange ? (
-                  <span className="text-green-500">✓ Resumable</span>
+                  <span className="text-success">✓ Resumable</span>
                 ) : (
-                  <span className="text-amber-500">⚠ Resume not supported</span>
+                  <span className="text-warn">⚠ Resume not supported</span>
                 )}
               </span>
             )}
@@ -246,23 +245,23 @@ export function AddDownloadModal({
         {!isMulti && (
           <div className="mt-4 grid grid-cols-2 gap-4">
             <label className="block">
-              <span className="mb-2 block text-xs font-black uppercase tracking-wide text-stone-500">Filename</span>
+              <span className="field-label">Filename</span>
               <input
                 value={fileName}
                 onChange={(event) => setFileName(event.target.value)}
-                className="h-12 w-full rounded-xl border border-stone-800 bg-stone-900 px-3 text-sm text-orange-50 outline-none transition placeholder:text-stone-500 focus:border-orange-500"
+                className="field-input h-12 text-sm"
                 placeholder={preflight?.fileName || parsedName || "Auto"}
                 aria-label="Filename"
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-xs font-black uppercase tracking-wide text-stone-500">Limit MB/s</span>
+              <span className="field-label">Limit MB/s</span>
               <input
                 value={speedLimit}
                 onChange={(event) => setSpeedLimit(event.target.value)}
                 inputMode="decimal"
-                className="h-12 w-full rounded-xl border border-stone-800 bg-stone-900 px-3 text-sm text-orange-50 outline-none transition placeholder:text-stone-500 focus:border-orange-500"
+                className="field-input h-12 text-sm"
                 placeholder={defaultSpeedLimitBps ? `Default ${(defaultSpeedLimitBps / 1024 / 1024).toFixed(1)}` : "Unlimited"}
                 aria-label="Speed limit in megabytes per second"
               />
@@ -272,9 +271,7 @@ export function AddDownloadModal({
 
         <div className="mt-4 grid grid-cols-2 gap-4">
           <fieldset>
-            <legend className="mb-2 block text-xs font-black uppercase tracking-wide text-stone-500">
-              Queue position
-            </legend>
+            <legend className="field-label">Queue position</legend>
             <div className="queue-mode">
               {[
                 ["now", "Start now"],
@@ -295,13 +292,11 @@ export function AddDownloadModal({
           </fieldset>
 
           <label className="block">
-            <span className="mb-2 block text-xs font-black uppercase tracking-wide text-stone-500">
-              Priority
-            </span>
+            <span className="field-label">Priority</span>
             <select
               value={priority}
               onChange={(event) => setPriority(Number(event.target.value))}
-              className="h-12 w-full rounded-xl border border-stone-800 bg-stone-900 px-3 text-sm text-orange-50 outline-none transition focus:border-orange-500"
+              className="field-input h-12 text-sm"
               aria-label="Download priority"
             >
               {priorityOptions.map((option) => (
@@ -315,19 +310,19 @@ export function AddDownloadModal({
 
         {/* Save-to folder */}
         <div className="mt-4">
-          <span className="mb-2 block text-xs font-black uppercase tracking-wide text-stone-500">Save to</span>
+          <span className="field-label">Save to</span>
           <div className="flex gap-2">
             <input
               value={directory}
               onChange={(e) => setDirectory(e.target.value)}
-              className="h-12 min-w-0 flex-1 rounded-xl border border-stone-800 bg-stone-900 px-3 text-sm text-orange-50 outline-none transition placeholder:text-stone-500 focus:border-orange-500"
+              className="field-input h-12 min-w-0 flex-1 text-sm"
               placeholder="Default download folder"
               aria-label="Save to folder"
             />
             <button
               type="button"
               onClick={handlePickDirectory}
-              className="h-12 rounded-xl border border-stone-800 px-3 text-sm font-bold text-stone-400 transition hover:border-stone-700 hover:bg-stone-900 hover:text-orange-100"
+              className="button-ghost h-12 px-3 text-sm"
               aria-label="Browse for save folder"
             >
               Browse
@@ -337,29 +332,25 @@ export function AddDownloadModal({
 
         {isMulti && (
           <div className="mt-4">
-            <span className="mb-2 block text-xs font-black uppercase tracking-wide text-stone-500">Limit MB/s</span>
+            <span className="field-label">Limit MB/s</span>
             <input
               value={speedLimit}
               onChange={(event) => setSpeedLimit(event.target.value)}
               inputMode="decimal"
-              className="h-12 w-full rounded-xl border border-stone-800 bg-stone-900 px-3 text-sm text-orange-50 outline-none transition placeholder:text-stone-500 focus:border-orange-500"
+              className="field-input h-12 text-sm"
               placeholder="Unlimited"
               aria-label="Speed limit in megabytes per second"
             />
           </div>
         )}
 
-        {error ? (
-          <div className="mt-4 rounded-xl border border-red-900 bg-red-950 px-3 py-2 text-sm font-bold text-red-200">
-            {error}
-          </div>
-        ) : null}
+        {error ? <div className="form-error">{error}</div> : null}
 
         <div className="mt-6 flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="h-11 rounded-xl border border-stone-800 px-4 text-sm font-bold text-stone-400 transition hover:border-stone-700 hover:bg-stone-900 hover:text-orange-100"
+            className="button-ghost h-11 px-4"
             aria-label="Cancel add download"
           >
             Cancel
@@ -367,10 +358,7 @@ export function AddDownloadModal({
           <button
             type="submit"
             disabled={submitting || urls.length === 0}
-            className={clsx(
-              "h-11 rounded-xl border border-orange-500 bg-orange-500 px-4 text-sm font-black text-stone-950 transition",
-              "hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60",
-            )}
+            className="button-cta h-11 px-4"
             aria-label={isMulti ? `Add ${urls.length} downloads` : "Add download"}
           >
             {submitting ? "Adding…" : isMulti ? `Add ${urls.length} downloads` : "Add download"}

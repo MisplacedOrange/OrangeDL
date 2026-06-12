@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { clsx } from "clsx";
 import { AddDownloadModal } from "../components/AddDownloadModal";
@@ -41,6 +44,7 @@ interface DownloadsPageProps {
   onCleanupHistory: () => void;
   onNavigateToSettings: () => void;
   openAddModal?: boolean;
+  addModalInitialUrl?: string;
   onAddModalOpened?: () => void;
 }
 
@@ -110,7 +114,12 @@ function exportFile(fileName: string, mimeType: string, body: string) {
 }
 
 function parseImportDefinitions(text: string): StartDownloadRequest[] {
-  const parsed = JSON.parse(text) as unknown;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return [];
+  }
   const values = Array.isArray(parsed) ? parsed : [parsed];
   return values
     .map((value): StartDownloadRequest | null => {
@@ -161,6 +170,7 @@ export function DownloadsPage({
   onCleanupHistory,
   onNavigateToSettings,
   openAddModal,
+  addModalInitialUrl,
   onAddModalOpened,
 }: DownloadsPageProps) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -260,11 +270,11 @@ export function DownloadsPage({
   // Open modal when triggered externally (tray / deep link)
   useEffect(() => {
     if (openAddModal) {
-      setDraftUrl("");
+      setDraftUrl(addModalInitialUrl ?? "");
       setModalOpen(true);
       onAddModalOpened?.();
     }
-  }, [openAddModal, onAddModalOpened]);
+  }, [openAddModal, addModalInitialUrl, onAddModalOpened]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -597,10 +607,8 @@ export function DownloadsPage({
           <button type="button" onClick={() => setModalOpen(true)} className="empty-download-state">
             <div>
               <span className="empty-state-icon">+</span>
-              <p className="mt-4 text-lg font-bold text-stone-300">No downloads match this view</p>
-              <p className="mt-1 text-sm text-stone-500">
-                Paste or drop an HTTP/HTTPS URL to start.
-              </p>
+              <p className="empty-state-title">No downloads match this view</p>
+              <p className="empty-state-sub">Paste or drop an HTTP/HTTPS URL to start.</p>
             </div>
           </button>
         )}
@@ -613,7 +621,7 @@ export function DownloadsPage({
 
       <footer className="download-statusbar">
         <div className="flex items-center gap-2">
-          <span className="text-stone-500">Total speed</span>
+          <span className="statusbar-label">Total speed</span>
           <span className="speed-pill">{formatSpeed(totalSpeed)}</span>
         </div>
         <label className="global-speed-control">
@@ -630,7 +638,7 @@ export function DownloadsPage({
             aria-label="Global speed limit in megabytes per second"
           />
         </label>
-        <div className="truncate text-stone-500">
+        <div className="statusbar-label truncate">
           {summary.active > 0
             ? `${summary.active} active, ${summary.queued} queued`
             : `${summary.completed} completed`}
@@ -638,7 +646,7 @@ export function DownloadsPage({
       </footer>
 
       {dragActive ? (
-        <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-black/70">
+        <div className="drag-overlay-backdrop pointer-events-none absolute inset-0 z-20 grid place-items-center">
           <div className="drag-overlay">Drop URL to add download</div>
         </div>
       ) : null}

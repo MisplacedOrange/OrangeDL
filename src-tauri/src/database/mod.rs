@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
 use crate::downloader::{DownloadError, Result};
 use crate::models::{AppSettings, Download, DownloadRow, DownloadStatus, ExecutorSummary};
 use sqlx::sqlite::{
@@ -21,6 +24,9 @@ const KEY_AUTO_OPEN_FOLDER_ON_COMPLETION: &str = "auto_open_folder_on_completion
 const KEY_HISTORY_RETENTION_DAYS: &str = "history_retention_days";
 const KEY_HISTORY_MAX_ROWS: &str = "history_max_rows";
 const KEY_FIRST_RUN_COMPLETED: &str = "first_run_completed";
+const KEY_THEME: &str = "theme";
+
+pub const DEFAULT_THEME: &str = "creamsicle";
 
 pub async fn connect(app: &AppHandle) -> Result<SqlitePool> {
     let data_dir = app
@@ -325,7 +331,7 @@ pub async fn update_progress(
             status = 'downloading',
             error = NULL,
             updated_at = ?
-        WHERE id = ?
+        WHERE id = ? AND status = 'downloading'
         "#,
     )
     .bind(to_i64(downloaded_bytes))
@@ -534,53 +540,52 @@ pub async fn update_download_priority(
 }
 
 pub async fn get_app_settings(pool: &SqlitePool, app: &AppHandle) -> Result<AppSettings> {
-    let default_download_directory = match get_setting(pool, KEY_DEFAULT_DOWNLOAD_DIRECTORY).await?
-    {
-        Some(value) if !value.trim().is_empty() => value,
+    let rows: Vec<(String, String)> = sqlx::query_as("SELECT key, value FROM settings")
+        .fetch_all(pool)
+        .await?;
+    let values: HashMap<String, String> = rows.into_iter().collect();
+
+    let get = |key: &str| values.get(key).map(String::as_str);
+    let get_bool = |key: &str, fallback: bool| {
+        get(key)
+            .and_then(|value| value.parse::<bool>().ok())
+            .unwrap_or(fallback)
+    };
+    let get_u32 = |key: &str| {
+        get(key)
+            .and_then(|value| value.parse::<u32>().ok())
+            .filter(|value| *value > 0)
+    };
+    let get_u64 = |key: &str| {
+        get(key)
+            .and_then(|value| value.parse::<u64>().ok())
+            .filter(|value| *value > 0)
+    };
+
+    let default_download_directory = match get(KEY_DEFAULT_DOWNLOAD_DIRECTORY) {
+        Some(value) if !value.trim().is_empty() => value.to_owned(),
         _ => system_download_dir(app)?.to_string_lossy().to_string(),
     };
 
-    let default_speed_limit_bps = get_setting(pool, KEY_DEFAULT_SPEED_LIMIT_BPS)
-        .await?
-        .and_then(|value| value.parse::<u64>().ok())
-        .filter(|value| *value > 0);
-
-    let global_speed_limit_bps = get_setting(pool, KEY_GLOBAL_SPEED_LIMIT_BPS)
-        .await?
-        .and_then(|value| value.parse::<u64>().ok())
-        .filter(|value| *value > 0);
-
-    let max_concurrent_downloads = get_max_concurrent_downloads(pool).await?;
-
-    let auto_resume_interrupted_downloads = get_setting(pool, KEY_AUTO_RESUME_INTERRUPTED)
-        .await?
-        .and_then(|v| v.parse::<bool>().ok())
-        .unwrap_or(false);
-
     Ok(AppSettings {
         default_download_directory,
-        default_speed_limit_bps,
-        global_speed_limit_bps,
-        max_concurrent_downloads,
-        auto_resume_interrupted_downloads,
-        close_to_tray: get_bool_setting(pool, KEY_CLOSE_TO_TRAY, true).await?,
-        notifications_enabled: get_bool_setting(pool, KEY_NOTIFICATIONS_ENABLED, true).await?,
-        notification_sound: get_bool_setting(pool, KEY_NOTIFICATION_SOUND, false).await?,
-        background_update_notifications: get_bool_setting(
-            pool,
-            KEY_BACKGROUND_UPDATE_NOTIFICATIONS,
-            false,
-        )
-        .await?,
-        auto_open_folder_on_completion: get_bool_setting(
-            pool,
-            KEY_AUTO_OPEN_FOLDER_ON_COMPLETION,
-            false,
-        )
-        .await?,
-        history_retention_days: get_u32_setting(pool, KEY_HISTORY_RETENTION_DAYS).await?,
-        history_max_rows: get_u32_setting(pool, KEY_HISTORY_MAX_ROWS).await?,
-        first_run_completed: get_bool_setting(pool, KEY_FIRST_RUN_COMPLETED, false).await?,
+        default_speed_limit_bps: get_u64(KEY_DEFAULT_SPEED_LIMIT_BPS),
+        global_speed_limit_bps: get_u64(KEY_GLOBAL_SPEED_LIMIT_BPS),
+        max_concurrent_downloads: get_u32(KEY_MAX_CONCURRENT_DOWNLOADS).unwrap_or(3),
+        auto_resume_interrupted_downloads: get_bool(KEY_AUTO_RESUME_INTERRUPTED, false),
+        close_to_tray: get_bool(KEY_CLOSE_TO_TRAY, true),
+        notifications_enabled: get_bool(KEY_NOTIFICATIONS_ENABLED, true),
+        notification_sound: get_bool(KEY_NOTIFICATION_SOUND, false),
+        background_update_notifications: get_bool(KEY_BACKGROUND_UPDATE_NOTIFICATIONS, false),
+        auto_open_folder_on_completion: get_bool(KEY_AUTO_OPEN_FOLDER_ON_COMPLETION, false),
+        history_retention_days: get_u32(KEY_HISTORY_RETENTION_DAYS),
+        history_max_rows: get_u32(KEY_HISTORY_MAX_ROWS),
+        first_run_completed: get_bool(KEY_FIRST_RUN_COMPLETED, false),
+        theme: get(KEY_THEME)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+            .unwrap_or_else(|| DEFAULT_THEME.to_owned()),
     })
 }
 
@@ -666,6 +671,10 @@ pub async fn set_first_run_completed(pool: &SqlitePool, value: bool) -> Result<(
     set_bool_setting(pool, KEY_FIRST_RUN_COMPLETED, value).await
 }
 
+pub async fn set_theme(pool: &SqlitePool, theme: &str) -> Result<()> {
+    set_setting(pool, KEY_THEME, theme).await
+}
+
 pub async fn get_download_validators(
     pool: &SqlitePool,
     id: &str,
@@ -682,6 +691,18 @@ pub async fn get_download_validators(
         ),
         None => (None, None),
     })
+}
+
+pub async fn clear_validators(pool: &SqlitePool, id: &str) -> Result<()> {
+    sqlx::query(
+        "UPDATE downloads SET etag = NULL, last_modified = NULL, updated_at = ? WHERE id = ?",
+    )
+    .bind(now())
+    .bind(id)
+    .execute(pool)
+    .await?;
+
+    Ok(())
 }
 
 pub async fn store_validators(
@@ -835,6 +856,7 @@ async fn get_setting(pool: &SqlitePool, key: &str) -> Result<Option<String>> {
     Ok(row)
 }
 
+#[cfg(test)]
 async fn get_bool_setting(pool: &SqlitePool, key: &str, fallback: bool) -> Result<bool> {
     Ok(get_setting(pool, key)
         .await?
@@ -842,6 +864,7 @@ async fn get_bool_setting(pool: &SqlitePool, key: &str, fallback: bool) -> Resul
         .unwrap_or(fallback))
 }
 
+#[cfg(test)]
 async fn get_u32_setting(pool: &SqlitePool, key: &str) -> Result<Option<u32>> {
     Ok(get_setting(pool, key)
         .await?

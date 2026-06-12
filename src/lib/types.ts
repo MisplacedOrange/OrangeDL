@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
 export type DownloadStatus =
   | "queued"
   | "downloading"
@@ -52,6 +55,7 @@ export interface AppSettings {
   historyRetentionDays: number | null;
   historyMaxRows: number | null;
   firstRunCompleted: boolean;
+  theme: string;
 }
 
 export interface UpdateSettingsRequest {
@@ -68,6 +72,7 @@ export interface UpdateSettingsRequest {
   historyRetentionDays?: number | null;
   historyMaxRows?: number | null;
   firstRunCompleted?: boolean | null;
+  theme?: string | null;
 }
 
 export interface UpdateDownloadOptionsRequest {

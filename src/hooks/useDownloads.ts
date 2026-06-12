@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ToastKind } from "./useToasts";
 import {
@@ -56,6 +59,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   historyRetentionDays: null,
   historyMaxRows: null,
   firstRunCompleted: false,
+  theme: "creamsicle",
 };
 
 const DEFAULT_EXECUTOR_SUMMARY: ExecutorSummary = {
@@ -482,5 +486,6 @@ function completeSettingsRequest(
     firstRunCompleted: has("firstRunCompleted")
       ? Boolean(request.firstRunCompleted)
       : current.firstRunCompleted,
+    theme: has("theme") ? request.theme ?? current.theme : current.theme,
   };
 }

@@ -1,7 +1,10 @@
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
 import { memo, useEffect, useState } from "react";
 import { clsx } from "clsx";
 import type { ChecksumResult, Download, UpdateDownloadOptionsRequest } from "../lib/types";
-import { formatBytes, formatSpeed, progressValue, statusLabel } from "../lib/format";
+import { formatBytes, formatEta, formatSpeed, progressValue, statusLabel } from "../lib/format";
 
 interface DownloadCardProps {
   download: Download;
@@ -137,11 +140,21 @@ export const DownloadCard = memo(function DownloadCard({
         }
       }}
     >
-      {/* Main row — click to expand */}
-      <button
-        type="button"
+      {/* Main row — click to expand. A div with button semantics rather than
+          a real <button> because the action buttons inside it would otherwise
+          be nested interactive elements (invalid HTML). */}
+      <div
+        role="button"
+        tabIndex={0}
         className="download-row-summary"
         onClick={() => setExpanded((v) => !v)}
+        onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return;
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setExpanded((v) => !v);
+          }
+        }}
         aria-expanded={expanded}
         aria-label={`${download.fileName}, ${statusLabel(download.status)}, ${Math.round(progress)} percent`}
       >
@@ -150,7 +163,7 @@ export const DownloadCard = memo(function DownloadCard({
           <span className={clsx("file-kind", isComplete && "is-complete")} />
           <div className="download-name-text">
             <div className="download-title-line">
-              <h3 className="truncate text-sm font-bold text-orange-50">{download.fileName}</h3>
+              <h3 className="download-title truncate">{download.fileName}</h3>
               <span className={clsx("priority-badge", priority.className)}>{priority.label}</span>
             </div>
             {!expanded && download.error ? (
@@ -159,13 +172,13 @@ export const DownloadCard = memo(function DownloadCard({
           </div>
         </div>
 
-        <div className="tabular text-sm font-bold text-orange-100">
+        <div className="cell-strong tabular">
           {download.totalBytes ? formatBytes(download.totalBytes) : "Unknown"}
         </div>
 
         <div className="download-status-cell">
           {isComplete ? (
-            <span className="text-sm font-bold text-stone-400">Completed</span>
+            <span className="cell-muted">Completed</span>
           ) : (
             <>
               <div
@@ -186,11 +199,11 @@ export const DownloadCard = memo(function DownloadCard({
           )}
         </div>
 
-        <div className="tabular text-sm font-bold text-orange-50">
+        <div className="cell-strong tabular">
           {isRunning ? formatSpeed(download.speedBps) : "0 B/s"}
         </div>
 
-        <div className="text-sm font-bold text-stone-400">{formatAdded(download.createdAt)}</div>
+        <div className="cell-muted">{formatAdded(download.createdAt)}</div>
 
         <div className="row-actions" onClick={(e) => e.stopPropagation()}>
           {canPause ? (
@@ -214,7 +227,7 @@ export const DownloadCard = memo(function DownloadCard({
             </button>
           ) : null}
         </div>
-      </button>
+      </div>
 
       {/* Expanded detail panel */}
       {expanded && (
@@ -243,7 +256,7 @@ export const DownloadCard = memo(function DownloadCard({
             {download.error && (
               <div>
                 <dt>Error</dt>
-                <dd className="text-red-400">{download.error}</dd>
+                <dd className="text-danger">{download.error}</dd>
               </div>
             )}
             {download.totalBytes && download.downloadedBytes > 0 && (
@@ -378,10 +391,3 @@ function formatAdded(value: string): string {
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-function formatEta(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return `${h}h ${m}m`;
-}

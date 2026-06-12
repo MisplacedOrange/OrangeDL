@@ -1,6 +1,11 @@
+// SPDX-FileCopyrightText: 2025 MisplacedOrange
+// SPDX-License-Identifier: GPL-3.0-only
+
 import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { clsx } from "clsx";
 import { formatSpeed } from "../lib/format";
 import { orangeApi } from "../lib/tauri";
+import { applyTheme, THEMES } from "../lib/themes";
 import type { AppSettings, UpdateCheckResult, UpdateSettingsRequest } from "../lib/types";
 
 interface SettingsPageProps {
@@ -82,6 +87,7 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
   const [historyMaxRows, setHistoryMaxRows] = useState(
     settings.historyMaxRows ? String(settings.historyMaxRows) : "",
   );
+  const [theme, setTheme] = useState(settings.theme);
   const [saving, setSaving] = useState(false);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
   const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(null);
@@ -110,7 +116,14 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
     setAutoOpenFolder(settings.autoOpenFolderOnCompletion ?? false);
     setHistoryRetentionDays(settings.historyRetentionDays ? String(settings.historyRetentionDays) : "");
     setHistoryMaxRows(settings.historyMaxRows ? String(settings.historyMaxRows) : "");
+    setTheme(settings.theme);
   }, [settings]);
+
+  async function handleThemeSelect(id: string) {
+    setTheme(id);
+    applyTheme(id);
+    await onSave({ theme: id });
+  }
 
   function buildRequest(firstRunCompleted = settings.firstRunCompleted): UpdateSettingsRequest {
     const numericConcurrent = parsePositiveInt(maxConcurrent, "Max concurrent downloads");
@@ -128,6 +141,7 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
       historyRetentionDays: parsePositiveInt(historyRetentionDays, "History retention days"),
       historyMaxRows: parsePositiveInt(historyMaxRows, "History max rows"),
       firstRunCompleted,
+      theme,
     };
   }
 
@@ -170,6 +184,7 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
         historyRetentionDays: parsed.historyRetentionDays ?? null,
         historyMaxRows: parsed.historyMaxRows ?? null,
         firstRunCompleted: parsed.firstRunCompleted ?? settings.firstRunCompleted,
+        theme: parsed.theme ?? settings.theme,
       });
     } catch (importError) {
       setError(`Settings import failed: ${String(importError)}`);
@@ -209,15 +224,47 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
     <div className="settings-page">
       <div className="settings-header">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-orange-400">
-            Preferences
-          </p>
-          <h2 className="mt-1 text-2xl font-bold text-orange-50">Download settings</h2>
+          <p className="page-eyebrow">Preferences</p>
+          <h2 className="page-title">Download settings</h2>
         </div>
         <span className="settings-badge">Saved locally</span>
       </div>
 
       <form onSubmit={handleSubmit} className="settings-card">
+        <section className="settings-group">
+          <div className="settings-section-title">
+            <span className="settings-section-mark">TH</span>
+            <div>
+              <h3>Appearance</h3>
+              <p>Pick a theme — it applies instantly and is saved right away.</p>
+            </div>
+          </div>
+
+          <div className="theme-grid" role="radiogroup" aria-label="Color theme">
+            {THEMES.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={theme === option.id}
+                className={clsx("theme-option", theme === option.id && "active")}
+                onClick={() => void handleThemeSelect(option.id)}
+              >
+                <span className="theme-swatch" aria-hidden="true">
+                  {option.swatch.map((color, index) => (
+                    <i key={index} style={{ background: color }} />
+                  ))}
+                </span>
+                <span className="theme-name">
+                  {option.label}
+                  {theme === option.id ? <span className="theme-active-tag">Active</span> : null}
+                </span>
+                <span className="theme-desc">{option.description}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
         <section className="settings-group">
           <div className="settings-section-title">
             <span className="settings-section-mark">DL</span>

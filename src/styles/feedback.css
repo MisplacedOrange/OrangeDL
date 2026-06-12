@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Feedback, Motion, And Accessibility Preferences
+   Feedback, Modals, Toasts, Motion, And Accessibility Preferences
 
    Contains modal/toast chrome plus OS preference overrides. Keep animation
    rules here so motion behavior is easy to audit.
@@ -7,6 +7,173 @@
 
 .modal-backdrop {
   animation: fadeIn var(--transition-fast) both;
+  background: var(--color-overlay);
+}
+
+.modal-panel {
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-panel);
+  background: var(--color-window-background);
+  box-shadow: var(--shadow-pop);
+  padding: 20px;
+}
+
+.modal-eyebrow {
+  color: var(--color-text-accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.modal-title {
+  color: var(--color-text-primary);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.modal-subtitle,
+.modal-hint {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.modal-hint {
+  font-size: 12px;
+}
+
+/* Shared form primitives used by modals */
+
+.field-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.field-input {
+  width: 100%;
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-window-background);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  outline: none;
+  padding: 0 12px;
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+textarea.field-input {
+  padding: 10px 12px;
+  resize: none;
+  line-height: 1.4;
+}
+
+.field-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.field-input:focus {
+  border-color: var(--color-brand-primary);
+  background: var(--color-surface-row-muted);
+}
+
+.button-cta {
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-brand-primary);
+  box-shadow: var(--shadow-card);
+  color: var(--color-brand-ink);
+  font-size: 14px;
+  font-weight: 900;
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.button-cta:hover:not(:disabled) {
+  background: var(--color-brand-primary-hover);
+  box-shadow: var(--shadow-card-hover);
+  transform: translate(-1px, -1px);
+}
+
+.button-cta:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+.button-cta:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.button-ghost {
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-window-background);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 800;
+  transition:
+    background var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.button-ghost:hover {
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-card);
+  transform: translate(-1px, -1px);
+}
+
+.button-ghost:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+.form-error {
+  margin-top: 16px;
+  border: var(--border-card) solid var(--color-danger-border);
+  border-radius: var(--radius-control);
+  background: var(--color-danger-surface);
+  color: var(--color-danger-text);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 10px 12px;
+}
+
+/* Toasts */
+
+.toast {
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-card);
+  padding: 12px 16px;
+}
+
+.toast--success {
+  background: var(--color-success-surface);
+  color: var(--color-success-text);
+}
+
+.toast--error {
+  background: var(--color-danger-surface);
+  color: var(--color-danger-text);
+}
+
+.toast--info {
+  background: var(--color-surface-panel);
+  color: var(--color-text-primary);
+}
+
+.toast-message {
+  color: var(--color-text-secondary);
 }
 
 .toast-mark {
@@ -15,16 +182,16 @@
   width: 24px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid currentColor;
-  border-radius: 999px;
+  border: var(--border-card) solid currentColor;
+  border-radius: var(--radius-tag);
   font-size: 11px;
   font-weight: 900;
 }
 
 .toast-dismiss {
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--color-text-secondary);
+  border: var(--border-card) solid transparent;
+  border-radius: var(--radius-tag);
+  color: inherit;
   font-size: 12px;
   font-weight: 900;
   padding: 3px 7px;
@@ -35,9 +202,7 @@
 }
 
 .toast-dismiss:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-panel);
-  color: var(--color-text-primary);
+  border-color: currentColor;
 }
 
 @keyframes fadeIn {
@@ -73,7 +238,15 @@
   .add-download-button:active,
   .primary-button:active,
   .secondary-button:active,
-  .row-action:active {
+  .button-cta:active,
+  .button-ghost:active,
+  .row-action:active,
+  .theme-option:hover,
+  .primary-button:hover,
+  .secondary-button:hover,
+  .button-cta:hover,
+  .button-ghost:hover,
+  .add-download-button:hover {
     transform: none;
   }
 }

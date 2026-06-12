@@ -3,17 +3,97 @@
 
    Keep raw color values in this file. Component styles should reference these
    semantic tokens instead of assigning one-off colors to individual elements.
+
+   Themes are applied via `data-theme` on <html>. Every theme block must
+   define the full color token set; layout/typography tokens live in :root.
+
+   Design language: flat pastel "sticker" look — chunky ink borders, hard
+   offset shadows, squared-off corners. No glassmorphism, no big radii.
    ========================================================================== */
 
 :root {
-  color-scheme: dark;
+  /* Layout, typography, and motion tokens (theme-independent) */
+  --font-app: "Segoe UI Variable Text", "Segoe UI", "Trebuchet MS", sans-serif;
+  --download-grid-columns: minmax(280px, 1fr) 90px minmax(210px, 270px) 110px 120px 190px;
+  --download-grid-min-width: 940px;
+  --radius-control: 4px;
+  --radius-panel: 6px;
+  --radius-tag: 3px;
+  --border-card: 2px;
+  --transition-fast: 120ms ease;
+}
+
+/* --------------------------------------------------------------------------
+   Creamsicle (default) — pastel orange on warm cream
+   -------------------------------------------------------------------------- */
+:root,
+:root[data-theme="creamsicle"] {
+  color-scheme: light;
 
   /* Brand color roles */
+  --color-brand-primary: #ff9442;
+  --color-brand-primary-hover: #ff8326;
+  --color-brand-ink: #2d1b10;
+
+  /* Surface color roles */
+  --color-app-background: #ffedd9;
+  --color-window-background: #fff8ef;
+  --color-surface-panel: #fff3e2;
+  --color-surface-raised: #ffe7cd;
+  --color-surface-row: #fffaf3;
+  --color-surface-row-muted: #fff3e2;
+  --color-surface-progress-track: #ffe2c4;
+
+  /* Border color roles */
+  --color-border-subtle: #efd3b2;
+  --color-border-strong: #3a2417;
+  --color-border-progress: #3a2417;
+
+  /* Text color roles */
+  --color-text-primary: #3a2417;
+  --color-text-secondary: #7c5a40;
+  --color-text-tertiary: #a3805f;
+  --color-text-accent: #d95f00;
+
+  /* State color roles */
+  --color-danger: #d9304f;
+  --color-danger-surface: #ffe1e6;
+  --color-danger-border: #d9304f;
+  --color-danger-text: #8f1430;
+  --color-success: #1d9e57;
+  --color-success-surface: #d9f5e3;
+  --color-success-border: #1d9e57;
+  --color-success-text: #0e6336;
+  --color-warn-text: #a16207;
+
+  /* Accessibility color roles */
+  --color-focus-ring: #d95f00;
+  --color-focus-shadow: rgba(255, 131, 38, 0.32);
+
+  /* Specialized UI roles */
+  --color-scrollbar-track: #ffedd9;
+  --color-scrollbar-thumb: #ffb070;
+  --color-file-complete-border: #3a2417;
+  --color-file-complete-surface: #ffe7cd;
+  --color-shadow-ink: #3a2417;
+  --color-overlay: rgba(58, 36, 23, 0.45);
+
+  /* Hard "sticker" shadows */
+  --shadow-card: 3px 3px 0 var(--color-shadow-ink);
+  --shadow-card-hover: 4px 4px 0 var(--color-shadow-ink);
+  --shadow-pop: 5px 5px 0 var(--color-shadow-ink);
+}
+
+/* --------------------------------------------------------------------------
+   Midnight Marmalade — dark cocoa with orange glow
+   -------------------------------------------------------------------------- */
+:root[data-theme="midnight"] {
+  color-scheme: dark;
+
   --color-brand-primary: #f97316;
   --color-brand-primary-hover: #fb923c;
   --color-brand-ink: #160b04;
 
-  /* Surface color roles */
   --color-app-background: #090806;
   --color-window-background: #0f0d0a;
   --color-surface-panel: #15110d;
@@ -22,41 +102,201 @@
   --color-surface-row-muted: #120f0b;
   --color-surface-progress-track: #251c14;
 
-  /* Border color roles */
   --color-border-subtle: #2d2117;
   --color-border-strong: #4b321f;
   --color-border-progress: #4d3928;
 
-  /* Text color roles */
   --color-text-primary: #f4ede6;
   --color-text-secondary: #aa927d;
   --color-text-tertiary: #75665a;
-  --color-text-accent: var(--color-brand-primary-hover);
+  --color-text-accent: #fb923c;
 
-  /* State color roles */
   --color-danger: #f87171;
   --color-danger-surface: #22100d;
   --color-danger-border: #7f1d1d;
   --color-danger-text: #fecaca;
+  --color-success: #22c55e;
+  --color-success-surface: #0c2818;
+  --color-success-border: #15803d;
+  --color-success-text: #86efac;
+  --color-warn-text: #fbbf24;
 
-  /* Accessibility color roles */
   --color-focus-ring: #fdba74;
   --color-focus-shadow: rgba(249, 115, 22, 0.28);
 
-  /* Specialized UI roles */
   --color-scrollbar-track: #100d0a;
   --color-scrollbar-thumb: #5a3a20;
   --color-file-complete-border: #5d4634;
   --color-file-complete-surface: #221a14;
+  --color-shadow-ink: #000000;
+  --color-overlay: rgba(0, 0, 0, 0.7);
 
-  /* Layout, typography, and motion tokens */
-  --font-app: "Bahnschrift", "Aptos", "Segoe UI Variable", "Segoe UI", sans-serif;
-  --download-grid-columns: minmax(280px, 1fr) 90px minmax(210px, 270px) 110px 120px 190px;
-  --download-grid-min-width: 940px;
-  --radius-control: 10px;
-  --radius-panel: 16px;
-  --transition-fast: 120ms ease;
+  --shadow-card: 3px 3px 0 var(--color-shadow-ink);
+  --shadow-card-hover: 4px 4px 0 var(--color-shadow-ink);
+  --shadow-pop: 5px 5px 0 var(--color-shadow-ink);
+}
 
+/* --------------------------------------------------------------------------
+   Peach Fizz — soft coral and peach
+   -------------------------------------------------------------------------- */
+:root[data-theme="peach"] {
+  color-scheme: light;
+
+  --color-brand-primary: #ff7e5f;
+  --color-brand-primary-hover: #ff6a45;
+  --color-brand-ink: #33150c;
+
+  --color-app-background: #ffe7df;
+  --color-window-background: #fff6f2;
+  --color-surface-panel: #ffeee7;
+  --color-surface-raised: #ffded2;
+  --color-surface-row: #fff9f6;
+  --color-surface-row-muted: #ffeee7;
+  --color-surface-progress-track: #ffd9cb;
+
+  --color-border-subtle: #f3cdbd;
+  --color-border-strong: #46211a;
+  --color-border-progress: #46211a;
+
+  --color-text-primary: #46211a;
+  --color-text-secondary: #8a5246;
+  --color-text-tertiary: #b07f70;
+  --color-text-accent: #e0492a;
+
+  --color-danger: #d9304f;
+  --color-danger-surface: #ffe1e6;
+  --color-danger-border: #d9304f;
+  --color-danger-text: #8f1430;
+  --color-success: #1d9e57;
+  --color-success-surface: #ddf5e6;
+  --color-success-border: #1d9e57;
+  --color-success-text: #0e6336;
+  --color-warn-text: #a16207;
+
+  --color-focus-ring: #e0492a;
+  --color-focus-shadow: rgba(255, 106, 69, 0.32);
+
+  --color-scrollbar-track: #ffe7df;
+  --color-scrollbar-thumb: #ffab92;
+  --color-file-complete-border: #46211a;
+  --color-file-complete-surface: #ffded2;
+  --color-shadow-ink: #46211a;
+  --color-overlay: rgba(70, 33, 26, 0.45);
+
+  --shadow-card: 3px 3px 0 var(--color-shadow-ink);
+  --shadow-card-hover: 4px 4px 0 var(--color-shadow-ink);
+  --shadow-pop: 5px 5px 0 var(--color-shadow-ink);
+}
+
+/* --------------------------------------------------------------------------
+   Mint Squeeze — pastel mint with an orange twist
+   -------------------------------------------------------------------------- */
+:root[data-theme="mint"] {
+  color-scheme: light;
+
+  --color-brand-primary: #ff9442;
+  --color-brand-primary-hover: #ff8326;
+  --color-brand-ink: #1f2e22;
+
+  --color-app-background: #e2f6ec;
+  --color-window-background: #f4fcf8;
+  --color-surface-panel: #e9f8f0;
+  --color-surface-raised: #d4f1e2;
+  --color-surface-row: #f8fdfa;
+  --color-surface-row-muted: #e9f8f0;
+  --color-surface-progress-track: #cdeedd;
+
+  --color-border-subtle: #bfe3d0;
+  --color-border-strong: #1f3a2d;
+  --color-border-progress: #1f3a2d;
+
+  --color-text-primary: #1f3a2d;
+  --color-text-secondary: #47705c;
+  --color-text-tertiary: #6f9c86;
+  --color-text-accent: #d95f00;
+
+  --color-danger: #d9304f;
+  --color-danger-surface: #ffe1e6;
+  --color-danger-border: #d9304f;
+  --color-danger-text: #8f1430;
+  --color-success: #15945a;
+  --color-success-surface: #d2f3e0;
+  --color-success-border: #15945a;
+  --color-success-text: #0b5e37;
+  --color-warn-text: #a16207;
+
+  --color-focus-ring: #d95f00;
+  --color-focus-shadow: rgba(255, 131, 38, 0.3);
+
+  --color-scrollbar-track: #e2f6ec;
+  --color-scrollbar-thumb: #8fd4b2;
+  --color-file-complete-border: #1f3a2d;
+  --color-file-complete-surface: #d4f1e2;
+  --color-shadow-ink: #1f3a2d;
+  --color-overlay: rgba(31, 58, 45, 0.45);
+
+  --shadow-card: 3px 3px 0 var(--color-shadow-ink);
+  --shadow-card-hover: 4px 4px 0 var(--color-shadow-ink);
+  --shadow-pop: 5px 5px 0 var(--color-shadow-ink);
+}
+
+/* --------------------------------------------------------------------------
+   Bubblegum — playful pastel pink
+   -------------------------------------------------------------------------- */
+:root[data-theme="bubblegum"] {
+  color-scheme: light;
+
+  --color-brand-primary: #f25cb1;
+  --color-brand-primary-hover: #ee3f9f;
+  --color-brand-ink: #2f1024;
+
+  --color-app-background: #fde4f2;
+  --color-window-background: #fff4fa;
+  --color-surface-panel: #fdebf5;
+  --color-surface-raised: #fbd6ea;
+  --color-surface-row: #fff8fc;
+  --color-surface-row-muted: #fdebf5;
+  --color-surface-progress-track: #f9cee5;
+
+  --color-border-subtle: #efc2dc;
+  --color-border-strong: #3c142d;
+  --color-border-progress: #3c142d;
+
+  --color-text-primary: #3c142d;
+  --color-text-secondary: #7d4263;
+  --color-text-tertiary: #a8718d;
+  --color-text-accent: #d61d83;
+
+  --color-danger: #d9304f;
+  --color-danger-surface: #ffe1e6;
+  --color-danger-border: #d9304f;
+  --color-danger-text: #8f1430;
+  --color-success: #1d9e57;
+  --color-success-surface: #ddf5e6;
+  --color-success-border: #1d9e57;
+  --color-success-text: #0e6336;
+  --color-warn-text: #a16207;
+
+  --color-focus-ring: #d61d83;
+  --color-focus-shadow: rgba(238, 63, 159, 0.3);
+
+  --color-scrollbar-track: #fde4f2;
+  --color-scrollbar-thumb: #f49cce;
+  --color-file-complete-border: #3c142d;
+  --color-file-complete-surface: #fbd6ea;
+  --color-shadow-ink: #3c142d;
+  --color-overlay: rgba(60, 20, 45, 0.45);
+
+  --shadow-card: 3px 3px 0 var(--color-shadow-ink);
+  --shadow-card-hover: 4px 4px 0 var(--color-shadow-ink);
+  --shadow-pop: 5px 5px 0 var(--color-shadow-ink);
+}
+
+/* --------------------------------------------------------------------------
+   Browser defaults
+   -------------------------------------------------------------------------- */
+
+:root {
   background: var(--color-app-background);
   color: var(--color-text-primary);
   font-family: var(--font-app);
@@ -118,6 +358,6 @@ button {
 
 ::-webkit-scrollbar-thumb {
   border: 2px solid var(--color-scrollbar-track);
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   background: var(--color-scrollbar-thumb);
 }
