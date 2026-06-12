@@ -15,6 +15,7 @@ permissions:
 
 env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  RELEASE_COMMIT: ${{ github.sha }}
 
 jobs:
   build-app:
@@ -65,6 +66,10 @@ jobs:
           releaseName: "OrangeDL ${{ env.RELEASE_TAG }}"
           releaseBody: |
             ## OrangeDL ${{ env.RELEASE_TAG }}
+
+            ### Commit
+            Tagged commit: `${{ env.RELEASE_COMMIT }}`
+            Commit link: https://github.com/MisplacedOrange/OrangeDL/commit/${{ env.RELEASE_COMMIT }}
 
             ### Download
             Download `OrangeDL.exe` for the portable app or `OrangeDL_*_x64-setup.exe` for the installer.
