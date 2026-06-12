@@ -10,6 +10,7 @@ export interface Toast {
   title: string;
   message?: string;
   kind: ToastKind;
+  fading?: boolean;
 }
 
 export function useToasts() {
@@ -20,9 +21,14 @@ export function useToasts() {
   }, []);
 
   const pushToast = useCallback(
-    (toast: Omit<Toast, "id">) => {
+    (toast: Omit<Toast, "id" | "fading">) => {
       const id = crypto.randomUUID();
       setToasts((current) => [...current.slice(-4), { ...toast, id }]);
+      window.setTimeout(() => {
+        setToasts((current) =>
+          current.map((t) => (t.id === id ? { ...t, fading: true } : t)),
+        );
+      }, 4200);
       window.setTimeout(() => removeToast(id), 4400);
     },
     [removeToast],

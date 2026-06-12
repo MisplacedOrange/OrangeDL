@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2025 MisplacedOrange
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::media_extractor::{self, VideoInfo, YtDlpStatus};
 use crate::models::{
-    AppSettings, ChecksumResult, Download, ExecutorSummary, PreflightResult, StartDownloadRequest,
-    UpdateCheckResult, UpdateDownloadOptionsRequest, UpdateSettingsRequest,
+    AppSettings, ChecksumResult, Download, PreflightResult, StartDownloadRequest,
+    StartVideoDownloadRequest, UpdateCheckResult, UpdateDownloadOptionsRequest, UpdateSettingsRequest,
 };
 use crate::AppState;
 use tauri::{AppHandle, State};
@@ -141,19 +142,6 @@ pub async fn clear_failed_downloads(state: State<'_, AppState>) -> Result<Vec<St
 }
 
 #[tauri::command]
-pub async fn reorder_download(
-    state: State<'_, AppState>,
-    id: String,
-    position: u32,
-) -> Result<Download, String> {
-    state
-        .manager
-        .reorder_download(&id, position)
-        .await
-        .map_err(|error| error.to_string())
-}
-
-#[tauri::command]
 pub async fn update_download_options(
     state: State<'_, AppState>,
     request: UpdateDownloadOptionsRequest,
@@ -161,15 +149,6 @@ pub async fn update_download_options(
     state
         .manager
         .update_download_options(request)
-        .await
-        .map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-pub async fn get_executor_summary(state: State<'_, AppState>) -> Result<ExecutorSummary, String> {
-    state
-        .manager
-        .get_executor_summary()
         .await
         .map_err(|error| error.to_string())
 }
@@ -259,6 +238,40 @@ pub async fn rename_download(
         .rename_download(&id, &new_name)
         .await
         .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn check_ytdlp(app: AppHandle) -> YtDlpStatus {
+    media_extractor::check_ytdlp(&app).await
+}
+
+#[tauri::command]
+pub async fn fetch_video_info(app: AppHandle, url: String) -> Result<VideoInfo, String> {
+    let ytdlp = media_extractor::find_ytdlp(&app)
+        .ok_or_else(|| "yt-dlp not found".to_owned())?;
+    media_extractor::fetch_video_info(&url, &ytdlp)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn start_video_download(
+    state: State<'_, AppState>,
+    request: StartVideoDownloadRequest,
+) -> Result<Download, String> {
+    state
+        .manager
+        .start_video_download(request)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn download_ytdlp(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
+    media_extractor::download_ytdlp_binary(&app, &state.manager.client())
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

@@ -7,6 +7,25 @@ import type { PreflightResult, StartDownloadRequest } from "../lib/types";
 import { orangeApi } from "../lib/tauri";
 import { formatBytes } from "../lib/format";
 
+const VIDEO_HOSTS = new Set([
+  "youtube.com", "youtu.be", "bilibili.com", "b23.tv", "twitch.tv",
+  "clips.twitch.tv", "vimeo.com", "dailymotion.com", "tiktok.com",
+  "vm.tiktok.com", "twitter.com", "x.com", "instagram.com", "reddit.com",
+  "v.redd.it", "facebook.com", "fb.watch", "nicovideo.jp", "rumble.com",
+  "odysee.com", "streamable.com", "gfycat.com",
+]);
+
+function isVideoUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url.trim());
+    let host = parsed.hostname.toLowerCase();
+    host = host.replace(/^(www\.|m\.|music\.)/, "");
+    return VIDEO_HOSTS.has(host);
+  } catch {
+    return false;
+  }
+}
+
 interface AddDownloadModalProps {
   open: boolean;
   initialUrl?: string;
@@ -14,25 +33,13 @@ interface AddDownloadModalProps {
   defaultSpeedLimitBps?: number | null;
   onClose: () => void;
   onSubmit: (requests: StartDownloadRequest[]) => Promise<void>;
+  onVideoUrl?: (url: string) => void;
 }
-
-type QueueMode = "now" | "top" | "bottom";
-
-const priorityOptions = [
-  { value: -5, label: "Low" },
-  { value: 0, label: "Normal" },
-  { value: 5, label: "High" },
-];
 
 function extractUrls(text: string): string[] {
   const matches = text.match(/https?:\/\/[^\s"'<>]+/gi);
   if (matches) return matches.map((url) => url.trim());
   return text.split(/[\n\r]+/).map((l) => l.trim()).filter(Boolean);
-}
-
-function queuePositionFor(mode: QueueMode, index: number): number | null {
-  if (mode === "bottom") return null;
-  return index;
 }
 
 export function AddDownloadModal({
@@ -42,13 +49,12 @@ export function AddDownloadModal({
   defaultSpeedLimitBps = null,
   onClose,
   onSubmit,
+  onVideoUrl,
 }: AddDownloadModalProps) {
   const [urlText, setUrlText] = useState(initialUrl);
   const [fileName, setFileName] = useState("");
   const [directory, setDirectory] = useState(defaultDirectory);
   const [speedLimit, setSpeedLimit] = useState("");
-  const [queueMode, setQueueMode] = useState<QueueMode>("bottom");
-  const [priority, setPriority] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [preflight, setPreflight] = useState<PreflightResult | null>(null);
@@ -77,8 +83,6 @@ export function AddDownloadModal({
       setFileName("");
       setDirectory(defaultDirectory);
       setSpeedLimit("");
-      setQueueMode("bottom");
-      setPriority(0);
       setError("");
       setPreflight(null);
     }
@@ -168,13 +172,11 @@ export function AddDownloadModal({
 
     setSubmitting(true);
     try {
-      const requests: StartDownloadRequest[] = urls.map((url, i) => ({
+      const requests: StartDownloadRequest[] = urls.map((url) => ({
         url: url.trim(),
         fileName: !isMulti && fileName.trim() ? fileName.trim() : null,
         directory: directory.trim() || null,
         speedLimitBps,
-        priority: queueMode === "now" ? Math.max(priority, 10) : priority,
-        queuePosition: queuePositionFor(queueMode, i),
       }));
       await onSubmit(requests);
       setUrlText("");
@@ -219,8 +221,22 @@ export function AddDownloadModal({
           />
         </label>
 
+        {/* Video URL banner */}
+        {singleUrl && isVideoUrl(singleUrl) && onVideoUrl && (
+          <div className="mt-2 flex items-center gap-3 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2">
+            <span className="text-sm">Video URL detected</span>
+            <button
+              type="button"
+              onClick={() => { onClose(); onVideoUrl(singleUrl); }}
+              className="button-cta h-8 px-3 text-xs ml-auto"
+            >
+              Pick quality &amp; download
+            </button>
+          </div>
+        )}
+
         {/* Preflight hint */}
-        {singleUrl && (
+        {singleUrl && !isVideoUrl(singleUrl) && (
           <div className="modal-hint mt-2 min-h-[18px]">
             {preflighting && <span>Checking server…</span>}
             {!preflighting && preflight && (
@@ -268,45 +284,6 @@ export function AddDownloadModal({
             </label>
           </div>
         )}
-
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <fieldset>
-            <legend className="field-label">Queue position</legend>
-            <div className="queue-mode">
-              {[
-                ["now", "Start now"],
-                ["top", "Top"],
-                ["bottom", "Bottom"],
-              ].map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={queueMode === value ? "active" : ""}
-                  onClick={() => setQueueMode(value as QueueMode)}
-                  aria-pressed={queueMode === value}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          <label className="block">
-            <span className="field-label">Priority</span>
-            <select
-              value={priority}
-              onChange={(event) => setPriority(Number(event.target.value))}
-              className="field-input h-12 text-sm"
-              aria-label="Download priority"
-            >
-              {priorityOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
 
         {/* Save-to folder */}
         <div className="mt-4">

@@ -4,33 +4,31 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { clsx } from "clsx";
 import { AddDownloadModal } from "../components/AddDownloadModal";
+import { VideoDownloadModal } from "../components/VideoDownloadModal";
 import { DownloadCard } from "../components/DownloadCard";
 import type {
   AppSettings,
   ChecksumResult,
   Download,
   DownloadSummary,
-  ExecutorSummary,
   StartDownloadRequest,
+  StartVideoDownloadRequest,
   UpdateDownloadOptionsRequest,
-  UpdateSettingsRequest,
 } from "../lib/types";
 import { formatSpeed } from "../lib/format";
 
 interface DownloadsPageProps {
   downloads: Download[];
   summary: DownloadSummary;
-  executorSummary: ExecutorSummary;
   loading: boolean;
   loadError: string;
   settings: AppSettings;
   onStartDownloads: (requests: StartDownloadRequest[]) => Promise<void>;
-  onUpdateSettings: (request: UpdateSettingsRequest) => Promise<void>;
+  onStartVideoDownload: (request: StartVideoDownloadRequest) => Promise<void>;
   onPauseDownload: (id: string) => void;
   onResumeDownload: (id: string) => void;
   onCancelDownload: (id: string) => void;
   onDeleteDownload: (id: string) => void;
-  onReorderDownload: (id: string, position: number) => void;
   onUpdateDownloadOptions: (request: UpdateDownloadOptionsRequest) => Promise<void>;
   onVerifyDownloadChecksum: (id: string, expectedSha256?: string | null) => Promise<ChecksumResult>;
   onOpenFile: (id: string) => void;
@@ -47,6 +45,8 @@ interface DownloadsPageProps {
   addModalInitialUrl?: string;
   onAddModalOpened?: () => void;
 }
+
+// --- Constants & utilities ---------------------------------------------------
 
 type FilterId = "all" | "active" | "history";
 
@@ -78,7 +78,6 @@ function historyCsv(downloads: Download[]): string {
     "status",
     "downloadedBytes",
     "totalBytes",
-    "priority",
     "createdAt",
     "updatedAt",
     "error",
@@ -92,7 +91,6 @@ function historyCsv(downloads: Download[]): string {
       download.status,
       download.downloadedBytes,
       download.totalBytes,
-      download.priority,
       download.createdAt,
       download.updatedAt,
       download.error,
@@ -135,28 +133,25 @@ function parseImportDefinitions(text: string): StartDownloadRequest[] {
           typeof record.speedLimitBps === "number" && record.speedLimitBps > 0
             ? record.speedLimitBps
             : null,
-        priority: typeof record.priority === "number" ? record.priority : 0,
-        queuePosition:
-          typeof record.queuePosition === "number" ? record.queuePosition : null,
       };
     })
     .filter((request): request is StartDownloadRequest => Boolean(request));
 }
 
+// --- Component ---------------------------------------------------------------
+
 export function DownloadsPage({
   downloads,
   summary,
-  executorSummary,
   loading,
   loadError,
   settings,
   onStartDownloads,
-  onUpdateSettings,
+  onStartVideoDownload,
   onPauseDownload,
   onResumeDownload,
   onCancelDownload,
   onDeleteDownload,
-  onReorderDownload,
   onUpdateDownloadOptions,
   onVerifyDownloadChecksum,
   onOpenFile,
@@ -173,21 +168,26 @@ export function DownloadsPage({
   addModalInitialUrl,
   onAddModalOpened,
 }: DownloadsPageProps) {
+  // --- State -----------------------------------------------------------------
+
   const [modalOpen, setModalOpen] = useState(false);
   const [draftUrl, setDraftUrl] = useState("");
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [videoModalUrl, setVideoModalUrl] = useState("");
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [filter, setFilter] = useState<FilterId>("all");
   const [dragActive, setDragActive] = useState(false);
-  const [draggedQueueId, setDraggedQueueId] = useState<string | null>(null);
-  const [dragOverQueueId, setDragOverQueueId] = useState<string | null>(null);
-  const [globalSpeedDraft, setGlobalSpeedDraft] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [online, setOnline] = useState(() => navigator.onLine);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // --- Derived state ---------------------------------------------------------
 
   const totalSpeed = useMemo(
     () =>
@@ -212,10 +212,13 @@ export function DownloadsPage({
     });
   }, [downloads, filter, deferredSearch]);
 
-  const queuedVisibleDownloads = useMemo(
-    () => visibleDownloads.filter((download) => download.status === "queued"),
-    [visibleDownloads],
-  );
+  const filterCounts = useMemo(() => {
+    let active = 0;
+    for (const download of downloads) {
+      if (["queued", "downloading", "paused"].includes(download.status)) active += 1;
+    }
+    return { all: downloads.length, active, history: downloads.length - active };
+  }, [downloads]);
 
   const useVirtualList = visibleDownloads.length > VIRTUALIZE_AFTER;
   const virtualRange = useMemo(() => {
@@ -236,12 +239,7 @@ export function DownloadsPage({
     ? Math.max(0, (visibleDownloads.length - virtualRange.end) * VIRTUAL_ROW_HEIGHT)
     : 0;
 
-  useEffect(() => {
-    const value = settings.globalSpeedLimitBps
-      ? String(settings.globalSpeedLimitBps / 1024 / 1024)
-      : "";
-    setGlobalSpeedDraft(value);
-  }, [settings.globalSpeedLimitBps]);
+  // --- Effects ---------------------------------------------------------------
 
   useEffect(() => {
     function handleOnline() {
@@ -266,6 +264,25 @@ export function DownloadsPage({
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
+
+  // Close the More menu on outside click or Escape
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handlePointerDown(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    window.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
 
   // Open modal when triggered externally (tray / deep link)
   useEffect(() => {
@@ -304,6 +321,8 @@ export function DownloadsPage({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onNavigateToSettings]);
 
+  // --- Handlers --------------------------------------------------------------
+
   function openWithUrl(url: string) {
     setDraftUrl(url);
     setModalOpen(true);
@@ -341,26 +360,9 @@ export function DownloadsPage({
     if (requests.length > 0) await onStartDownloads(requests);
   }
 
-  function handleQueueDrop(targetId: string) {
-    if (!draggedQueueId || draggedQueueId === targetId) return;
-    const position = queuedVisibleDownloads.findIndex((download) => download.id === targetId);
-    if (position >= 0) onReorderDownload(draggedQueueId, position);
-    setDraggedQueueId(null);
-    setDragOverQueueId(null);
-  }
+  // --- Render ----------------------------------------------------------------
 
-  async function saveGlobalSpeedLimit() {
-    const numeric = Number(globalSpeedDraft);
-    if (!globalSpeedDraft.trim()) {
-      await onUpdateSettings({ globalSpeedLimitBps: null });
-      return;
-    }
-    if (Number.isFinite(numeric) && numeric > 0) {
-      await onUpdateSettings({ globalSpeedLimitBps: Math.round(numeric * 1024 * 1024) });
-    }
-  }
-
-  const hasActive = summary.active > 0 || summary.queued > 0;
+  const hasActive = downloads.some((d) => d.status === "downloading" || d.status === "queued");
   const hasPaused = downloads.some((d) => d.status === "paused");
   const hasFailed = summary.failed > 0;
   const hasCompleted = summary.completed > 0;
@@ -386,12 +388,18 @@ export function DownloadsPage({
               className={filter === item.id ? "active" : ""}
             >
               {item.label}
+              <span className="chip-count">{filterCounts[item.id]}</span>
             </button>
           ))}
         </div>
 
         <label className="download-search">
-          <span>Search</span>
+          <span aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.5"/>
+              <line x1="8.7" y1="8.7" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </span>
           <input
             ref={searchRef}
             value={search}
@@ -402,15 +410,93 @@ export function DownloadsPage({
           />
         </label>
 
-        <button
-          type="button"
-          onClick={() => { setDraftUrl(""); setModalOpen(true); }}
-          className="add-download-button"
-          aria-keyshortcuts="Control+n"
-        >
-          <span aria-hidden="true">+</span>
-          Add download
-        </button>
+        <div className="toolbar-cluster">
+          {hasActive && (
+            <button type="button" onClick={onPauseAll} className="toolbar-btn">
+              Pause all
+            </button>
+          )}
+          {hasPaused && (
+            <button type="button" onClick={onResumeAll} className="toolbar-btn">
+              Resume all
+            </button>
+          )}
+          {hasFailed && (
+            <button type="button" onClick={onRetryFailed} className="toolbar-btn">
+              Retry failed
+            </button>
+          )}
+
+          <div className="more-menu" ref={menuRef}>
+            <button
+              type="button"
+              className="toolbar-btn"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label="More actions"
+            >
+              More
+              <span aria-hidden="true" className="more-caret">▾</span>
+            </button>
+            {menuOpen && (
+              <div className="more-menu-panel" role="menu">
+                <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); importInputRef.current?.click(); }}>
+                  Import URLs…
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    exportFile("orangedl-history.json", "application/json", JSON.stringify(downloads, null, 2));
+                  }}
+                >
+                  Export JSON
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    exportFile("orangedl-history.csv", "text/csv", historyCsv(downloads));
+                  }}
+                >
+                  Export CSV
+                </button>
+                <div className="more-menu-separator" role="separator" />
+                {hasCompleted && (
+                  <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onClearCompleted(); }}>
+                    Clear completed
+                  </button>
+                )}
+                {hasCancelled && (
+                  <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onClearCancelled(); }}>
+                    Clear cancelled
+                  </button>
+                )}
+                {hasFailed && (
+                  <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onClearFailed(); }}>
+                    Clear failed
+                  </button>
+                )}
+                <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onCleanupHistory(); }}>
+                  Cleanup history
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => { setDraftUrl(""); setModalOpen(true); }}
+            className="add-download-button"
+            aria-keyshortcuts="Control+n"
+          >
+            <span aria-hidden="true">+</span>
+            Add download
+          </button>
+        </div>
 
         <input
           ref={importInputRef}
@@ -425,72 +511,6 @@ export function DownloadsPage({
         />
       </div>
 
-      {/* Queue controls */}
-      <div className="queue-controls" aria-label="Queue controls">
-        {hasActive && (
-          <button type="button" onClick={onPauseAll} className="queue-btn queue-btn--pause">
-            Pause all
-          </button>
-        )}
-        {hasPaused && (
-          <button type="button" onClick={onResumeAll} className="queue-btn queue-btn--resume">
-            Resume all
-          </button>
-        )}
-        {hasFailed && (
-          <button type="button" onClick={onRetryFailed} className="queue-btn queue-btn--retry">
-            Retry failed
-          </button>
-        )}
-        {hasCompleted && (
-          <button
-            type="button"
-            onClick={onClearCompleted}
-            className="queue-btn queue-btn--clear"
-          >
-            Clear completed
-          </button>
-        )}
-        {hasCancelled && (
-          <button
-            type="button"
-            onClick={onClearCancelled}
-            className="queue-btn queue-btn--clear"
-          >
-            Clear cancelled
-          </button>
-        )}
-        {hasFailed && (
-          <button
-            type="button"
-            onClick={onClearFailed}
-            className="queue-btn queue-btn--clear"
-          >
-            Clear failed
-          </button>
-        )}
-        <button type="button" onClick={() => importInputRef.current?.click()} className="queue-btn queue-btn--retry">
-          Import
-        </button>
-        <button
-          type="button"
-          onClick={() => exportFile("orangedl-history.json", "application/json", JSON.stringify(downloads, null, 2))}
-          className="queue-btn queue-btn--clear"
-        >
-          Export JSON
-        </button>
-        <button
-          type="button"
-          onClick={() => exportFile("orangedl-history.csv", "text/csv", historyCsv(downloads))}
-          className="queue-btn queue-btn--clear"
-        >
-          Export CSV
-        </button>
-        <button type="button" onClick={onCleanupHistory} className="queue-btn queue-btn--clear">
-          Cleanup
-        </button>
-      </div>
-
       {!online || loadError || useVirtualList ? (
         <div className="download-state-strip" role="status">
           {!online ? <span>Offline</span> : null}
@@ -503,53 +523,6 @@ export function DownloadsPage({
           ) : null}
         </div>
       ) : null}
-
-      <section className="queue-strip" aria-label="Queue slots">
-        <div>
-          <span>Active slots</span>
-          <strong>
-            {executorSummary.active}/{executorSummary.maxConcurrent}
-          </strong>
-        </div>
-        <div className="slot-rail" aria-hidden="true">
-          {Array.from({ length: Math.max(1, executorSummary.maxConcurrent) }, (_, index) => (
-            <span key={index} className={index < executorSummary.active ? "filled" : ""} />
-          ))}
-        </div>
-        <div>
-          <span>Queue</span>
-          <strong>{executorSummary.queued}</strong>
-        </div>
-        <div>
-          <span>Total speed</span>
-          <strong>{formatSpeed(executorSummary.totalSpeedBps)}</strong>
-        </div>
-      </section>
-
-      <section className="download-overview" aria-label="Download summary">
-        <div className="download-overview-stat">
-          <span>Total</span>
-          <strong>{summary.total}</strong>
-        </div>
-        <div className="download-overview-stat">
-          <span>Active</span>
-          <strong>{summary.active}</strong>
-        </div>
-        <div className="download-overview-stat">
-          <span>Queued</span>
-          <strong>{summary.queued}</strong>
-        </div>
-        <div className="download-overview-stat">
-          <span>Completed</span>
-          <strong>{summary.completed}</strong>
-        </div>
-        <div className="download-overview-stat">
-          <span>Slots</span>
-          <strong>
-            {executorSummary.active}/{executorSummary.maxConcurrent}
-          </strong>
-        </div>
-      </section>
 
       <div
         ref={tableRef}
@@ -586,19 +559,6 @@ export function DownloadsPage({
                 onVerifyChecksum={onVerifyDownloadChecksum}
                 onOpenFile={onOpenFile}
                 onRevealInExplorer={onRevealInExplorer}
-                draggable={download.status === "queued"}
-                dragOver={dragOverQueueId === download.id}
-                onDragStart={() => setDraggedQueueId(download.id)}
-                onDragEnter={() => {
-                  if (draggedQueueId && download.status === "queued") {
-                    setDragOverQueueId(download.id);
-                  }
-                }}
-                onDragEnd={() => {
-                  setDraggedQueueId(null);
-                  setDragOverQueueId(null);
-                }}
-                onDrop={() => handleQueueDrop(download.id)}
               />
             ))}
             {bottomSpacer > 0 ? <div style={{ height: bottomSpacer }} /> : null}
@@ -614,33 +574,14 @@ export function DownloadsPage({
         )}
       </div>
 
-      <button type="button" onClick={() => setModalOpen(true)} className="drop-zone">
-        <span className="drop-icon">+</span>
-        Drop a URL here or add one manually
-      </button>
-
       <footer className="download-statusbar">
         <div className="flex items-center gap-2">
           <span className="statusbar-label">Total speed</span>
           <span className="speed-pill">{formatSpeed(totalSpeed)}</span>
         </div>
-        <label className="global-speed-control">
-          <span>Global cap MB/s</span>
-          <input
-            value={globalSpeedDraft}
-            onChange={(event) => setGlobalSpeedDraft(event.target.value)}
-            onBlur={() => void saveGlobalSpeedLimit()}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") void saveGlobalSpeedLimit();
-            }}
-            placeholder="Unlimited"
-            inputMode="decimal"
-            aria-label="Global speed limit in megabytes per second"
-          />
-        </label>
         <div className="statusbar-label truncate">
           {summary.active > 0
-            ? `${summary.active} active, ${summary.queued} queued`
+            ? `${summary.active} active`
             : `${summary.completed} completed`}
         </div>
       </footer>
@@ -658,6 +599,17 @@ export function DownloadsPage({
         defaultSpeedLimitBps={settings.defaultSpeedLimitBps}
         onClose={() => setModalOpen(false)}
         onSubmit={onStartDownloads}
+        onVideoUrl={(url) => {
+          setVideoModalUrl(url);
+          setVideoModalOpen(true);
+        }}
+      />
+      <VideoDownloadModal
+        open={videoModalOpen}
+        url={videoModalUrl}
+        defaultDirectory={settings.defaultDownloadDirectory}
+        onClose={() => setVideoModalOpen(false)}
+        onSubmit={onStartVideoDownload}
       />
     </div>
   );

@@ -5,6 +5,12 @@ edition = "2021"
 description = "Small downloader bootstrapper for OrangeDL release assets"
 license = "GPL-3.0-only"
 
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+
 [dependencies]
 anyhow = "1"
 hex = "0.4"

@@ -37,6 +37,30 @@ enum Channel {
     Nightly,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AssetKind {
+    /// A runnable application binary (portable exe, AppImage) that is
+    /// installed to a directory and launched directly.
+    App,
+    /// An installer package (NSIS setup exe, MSI, DMG) that is executed
+    /// to perform an installation.
+    Installer,
+}
+
+fn asset_kind(name: &str) -> AssetKind {
+    let lower = name.to_ascii_lowercase();
+
+    if lower.ends_with(".msi") || lower.ends_with(".dmg") {
+        return AssetKind::Installer;
+    }
+
+    if lower.contains("setup") || lower.contains("installer") || lower.contains("install") {
+        return AssetKind::Installer;
+    }
+
+    AssetKind::App
+}
+
 impl Channel {
     fn as_str(self) -> &'static str {
         match self {
@@ -133,10 +157,17 @@ fn run() -> Result<()> {
         }
     };
 
-    let destination = options
-        .output
-        .clone()
-        .unwrap_or_else(|| env::temp_dir().join(safe_file_name(&asset.name)));
+    let kind = asset_kind(&asset.name);
+
+    let destination = options.output.clone().unwrap_or_else(|| {
+        let file_name = safe_file_name(&asset.name);
+        match kind {
+            // Runnable app binaries get a permanent home; installers only
+            // need to survive long enough to run, so temp is fine.
+            AssetKind::App => app_install_dir(options.install_dir.as_deref()).join(file_name),
+            AssetKind::Installer => env::temp_dir().join(file_name),
+        }
+    });
 
     println!("OrangeDL Bootstrapper v{}", env!("CARGO_PKG_VERSION"));
     println!(
@@ -170,14 +201,71 @@ fn run() -> Result<()> {
         }
     }
 
-    println!("\nInstaller downloaded to: {}", destination.display());
+    println!("\nDownloaded to: {}", destination.display());
 
     if options.download_only {
-        println!("--download-only specified. Exiting without launching installer.");
+        println!("--download-only specified. Exiting without launching.");
         return Ok(());
     }
 
-    launch_installer(&destination, options.silent, options.install_dir.as_deref())?;
+    match kind {
+        AssetKind::App => launch_app(&destination)?,
+        AssetKind::Installer => {
+            launch_installer(&destination, options.silent, options.install_dir.as_deref())?
+        }
+    }
+    Ok(())
+}
+
+/// Directory where runnable app binaries are placed when no --output is given.
+fn app_install_dir(install_dir: Option<&str>) -> PathBuf {
+    if let Some(dir) = install_dir {
+        return PathBuf::from(dir);
+    }
+
+    if cfg!(target_os = "windows") {
+        if let Ok(local_app_data) = env::var("LOCALAPPDATA") {
+            return PathBuf::from(local_app_data)
+                .join("Programs")
+                .join("OrangeDL");
+        }
+    } else if let Ok(home) = env::var("HOME") {
+        return PathBuf::from(home).join(".local").join("bin");
+    }
+
+    env::temp_dir().join("OrangeDL")
+}
+
+/// Launch a runnable app binary directly and return without waiting for it
+/// to exit, so the bootstrapper doesn't linger for the app's whole lifetime.
+fn launch_app(path: &Path) -> Result<()> {
+    println!("Launching OrangeDL: {}", path.display());
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = fs::metadata(path)
+            .with_context(|| format!("failed to read metadata for {}", path.display()))?
+            .permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(path, permissions)
+            .with_context(|| format!("failed to make {} executable", path.display()))?;
+    }
+
+    let mut command = if cfg!(target_os = "macos") {
+        let mut cmd = Command::new("open");
+        cmd.arg(path);
+        cmd
+    } else {
+        Command::new(path)
+    };
+
+    command
+        .current_dir(path.parent().unwrap_or_else(|| Path::new(".")))
+        .spawn()
+        .with_context(|| format!("failed to launch {}", path.display()))?;
+
+    println!("\nOrangeDL is running.");
     Ok(())
 }
 
@@ -475,8 +563,11 @@ fn print_help() {
         "\
 OrangeDL release bootstrapper
 
-Downloads and launches the correct OrangeDL installer for this platform.
-When no --tag is specified, the latest stable release is used.
+Downloads the correct OrangeDL release for this platform and runs it.
+Runnable app binaries (portable exe, AppImage) are installed to a local
+directory and launched directly; installer packages (setup exe, MSI) are
+downloaded and executed. When no --tag is specified, the latest stable
+release is used.
 
 Usage:
   orangedl-bootstrap [options]
@@ -486,10 +577,10 @@ Options:
   --channel <channel>   Release channel: stable (default), beta, nightly
   --repo <owner/repo>   GitHub repository [default: MisplacedOrange/OrangeDL]
   --asset-url <url>     Download a specific asset URL instead of auto-detecting
-  --output <path>       Save the installer to this path instead of the temp directory
-  --install-dir <path>  Pass a custom install directory to the installer (NSIS /D flag)
-  --download-only       Download the installer without launching it
-  --silent              Launch the installer in silent (unattended) mode
+  --output <path>       Save the download to this exact path
+  --install-dir <path>  Directory to place the app in (or NSIS /D flag for installers)
+  --download-only       Download without launching
+  --silent              Launch installers in silent (unattended) mode
   --no-verify           Skip SHA256 checksum verification
   -V, --version         Print bootstrapper version
   -h, --help            Print help
@@ -632,6 +723,9 @@ fn asset_score(name: &str) -> Option<i32> {
     }
 
     let mut score = match env::consts::OS {
+        // Must outrank installer score plus the +50 architecture bonus so a
+        // runnable app exe always beats an arch-tagged setup exe.
+        "windows" if lower.ends_with(".exe") && asset_kind(name) == AssetKind::App => 400,
         "windows" if lower.ends_with(".exe") => 320,
         "windows" if lower.ends_with(".msi") => 300,
         "macos" if lower.ends_with(".dmg") => 300,
@@ -870,6 +964,24 @@ mod tests {
         };
 
         assert!(asset_score(&asset_name).is_some());
+    }
+
+    #[test]
+    fn asset_kind_classifies_installers_and_apps() {
+        assert_eq!(asset_kind("OrangeDL_0.1.0_x64-setup.exe"), AssetKind::Installer);
+        assert_eq!(asset_kind("OrangeDL-installer.msi"), AssetKind::Installer);
+        assert_eq!(asset_kind("OrangeDL.dmg"), AssetKind::Installer);
+        assert_eq!(asset_kind("OrangeDL.exe"), AssetKind::App);
+        assert_eq!(asset_kind("OrangeDL-portable-x64.exe"), AssetKind::App);
+        assert_eq!(asset_kind("OrangeDL.AppImage"), AssetKind::App);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn asset_score_prefers_runnable_app_over_installer() {
+        let app = asset_score("OrangeDL.exe").expect("app exe should match");
+        let setup = asset_score("OrangeDL_0.1.0_x64-setup.exe").expect("setup exe should match");
+        assert!(app > setup);
     }
 
     #[test]

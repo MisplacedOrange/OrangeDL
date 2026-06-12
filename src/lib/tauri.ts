@@ -8,15 +8,20 @@ import type {
   AppSettings,
   ChecksumResult,
   Download,
-  ExecutorSummary,
   PreflightResult,
   StartDownloadRequest,
+  StartVideoDownloadRequest,
   UpdateCheckResult,
   UpdateDownloadOptionsRequest,
   UpdateSettingsRequest,
+  VideoInfo,
+  YtDlpStatus,
 } from "./types";
 
+// --- API object --------------------------------------------------------------
+
 export const orangeApi = {
+  // Downloads
   startDownload(request: StartDownloadRequest) {
     return invoke<Download>("start_download", { request });
   },
@@ -35,12 +40,17 @@ export const orangeApi = {
   listDownloads() {
     return invoke<Download[]>("list_downloads");
   },
-  getSettings() {
-    return invoke<AppSettings>("get_settings");
+  updateDownloadOptions(request: UpdateDownloadOptionsRequest) {
+    return invoke<Download>("update_download_options", { request });
   },
-  updateSettings(request: UpdateSettingsRequest) {
-    return invoke<AppSettings>("update_settings", { request });
+  preflightCheck(url: string) {
+    return invoke<PreflightResult>("preflight_check", { url });
   },
+  verifyDownloadChecksum(id: string, expectedSha256?: string | null) {
+    return invoke<ChecksumResult>("verify_download_checksum", { id, expectedSha256 });
+  },
+
+  // Bulk download actions
   pauseAllDownloads() {
     return invoke<string[]>("pause_all_downloads");
   },
@@ -59,37 +69,50 @@ export const orangeApi = {
   clearFailedDownloads() {
     return invoke<string[]>("clear_failed_downloads");
   },
-  reorderDownload(id: string, position: number) {
-    return invoke<Download>("reorder_download", { id, position });
+  cleanupHistory() {
+    return invoke<string[]>("cleanup_history");
   },
-  updateDownloadOptions(request: UpdateDownloadOptionsRequest) {
-    return invoke<Download>("update_download_options", { request });
-  },
-  getExecutorSummary() {
-    return invoke<ExecutorSummary>("get_executor_summary");
-  },
-  preflightCheck(url: string) {
-    return invoke<PreflightResult>("preflight_check", { url });
-  },
+
+  // File operations
   openFile(id: string) {
     return invoke<void>("open_file", { id });
   },
   revealInExplorer(id: string) {
     return invoke<void>("reveal_in_explorer", { id });
   },
-  verifyDownloadChecksum(id: string, expectedSha256?: string | null) {
-    return invoke<ChecksumResult>("verify_download_checksum", { id, expectedSha256 });
-  },
-  checkForUpdates() {
-    return invoke<UpdateCheckResult>("check_for_updates");
-  },
-  cleanupHistory() {
-    return invoke<string[]>("cleanup_history");
-  },
   pickDirectory() {
     return invoke<string | null>("pick_directory");
   },
+
+  // Settings
+  getSettings() {
+    return invoke<AppSettings>("get_settings");
+  },
+  updateSettings(request: UpdateSettingsRequest) {
+    return invoke<AppSettings>("update_settings", { request });
+  },
+
+  // Updates
+  checkForUpdates() {
+    return invoke<UpdateCheckResult>("check_for_updates");
+  },
+
+  // Video (yt-dlp)
+  checkYtdlp() {
+    return invoke<YtDlpStatus>("check_ytdlp");
+  },
+  fetchVideoInfo(url: string) {
+    return invoke<VideoInfo>("fetch_video_info", { url });
+  },
+  startVideoDownload(request: StartVideoDownloadRequest) {
+    return invoke<Download>("start_video_download", { request });
+  },
+  downloadYtdlp() {
+    return invoke<void>("download_ytdlp");
+  },
 };
+
+// --- Event listeners ---------------------------------------------------------
 
 export function onDownloadProgress(handler: (download: Download) => void): Promise<UnlistenFn> {
   return listen<Download>("download-progress", (event) => handler(event.payload));
@@ -101,12 +124,6 @@ export function onDownloadFinished(handler: (download: Download) => void): Promi
 
 export function onDownloadStatus(handler: (download: Download) => void): Promise<UnlistenFn> {
   return listen<Download>("download-status", (event) => handler(event.payload));
-}
-
-export function onExecutorSummary(
-  handler: (summary: ExecutorSummary) => void,
-): Promise<UnlistenFn> {
-  return listen<ExecutorSummary>("executor-summary", (event) => handler(event.payload));
 }
 
 export function onTrayAddDownload(handler: () => void): Promise<UnlistenFn> {

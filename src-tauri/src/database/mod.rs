@@ -100,8 +100,6 @@ pub async fn migrate(pool: &SqlitePool) -> Result<()> {
 
     // v2: add executor columns
     let executor_columns = [
-        "ALTER TABLE downloads ADD COLUMN priority INTEGER NOT NULL DEFAULT 0",
-        "ALTER TABLE downloads ADD COLUMN queue_position INTEGER",
         "ALTER TABLE downloads ADD COLUMN queued_at TEXT",
         "ALTER TABLE downloads ADD COLUMN started_at TEXT",
         "ALTER TABLE downloads ADD COLUMN completed_at TEXT",
@@ -120,7 +118,7 @@ pub async fn migrate(pool: &SqlitePool) -> Result<()> {
     }
 
     sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_downloads_queue ON downloads(status, priority DESC, created_at ASC)",
+        "CREATE INDEX IF NOT EXISTS idx_downloads_queue ON downloads(status, created_at ASC)",
     )
     .execute(pool)
     .await?;
@@ -134,6 +132,15 @@ pub async fn migrate(pool: &SqlitePool) -> Result<()> {
     // Record schema version 2 as applied (idempotent).
     let _ =
         sqlx::query("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (2, ?)")
+            .bind(now())
+            .execute(pool)
+            .await;
+
+    // v3: media/video download support
+    add_column_if_missing(pool, "ALTER TABLE downloads ADD COLUMN media_format TEXT").await?;
+
+    let _ =
+        sqlx::query("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (3, ?)")
             .bind(now())
             .execute(pool)
             .await;
@@ -175,10 +182,10 @@ pub async fn insert_download(pool: &SqlitePool, download: &Download) -> Result<(
         INSERT INTO downloads (
             id, url, file_name, destination, temp_path, total_bytes,
             downloaded_bytes, status, speed_bps, error, created_at, updated_at,
-            speed_limit_bps, priority, queue_position, retry_count, max_retries,
+            speed_limit_bps, retry_count, max_retries,
             queued_at, checksum_sha256
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#,
     )
     .bind(&download.id)
@@ -194,8 +201,6 @@ pub async fn insert_download(pool: &SqlitePool, download: &Download) -> Result<(
     .bind(&download.created_at)
     .bind(&download.updated_at)
     .bind(download.speed_limit_bps.map(to_i64))
-    .bind(download.priority)
-    .bind(download.queue_position)
     .bind(download.retry_count as i64)
     .bind(download.max_retries as i64)
     .bind(now())
@@ -211,8 +216,6 @@ pub async fn list_downloads(pool: &SqlitePool) -> Result<Vec<Download>> {
         r#"
         SELECT id, url, file_name, destination, temp_path, total_bytes, downloaded_bytes,
                status, speed_bps, error, created_at, updated_at, speed_limit_bps,
-               COALESCE(priority, 0) as priority,
-               queue_position,
                COALESCE(retry_count, 0) as retry_count,
                COALESCE(max_retries, 3) as max_retries,
                checksum_sha256
@@ -232,8 +235,6 @@ pub async fn get_download(pool: &SqlitePool, id: &str) -> Result<Option<Download
         r#"
         SELECT id, url, file_name, destination, temp_path, total_bytes, downloaded_bytes,
                status, speed_bps, error, created_at, updated_at, speed_limit_bps,
-               COALESCE(priority, 0) as priority,
-               queue_position,
                COALESCE(retry_count, 0) as retry_count,
                COALESCE(max_retries, 3) as max_retries,
                checksum_sha256
@@ -254,16 +255,12 @@ pub async fn get_next_queued(pool: &SqlitePool, limit: u32) -> Result<Vec<Downlo
         r#"
         SELECT id, url, file_name, destination, temp_path, total_bytes, downloaded_bytes,
                status, speed_bps, error, created_at, updated_at, speed_limit_bps,
-               COALESCE(priority, 0) as priority,
-               queue_position,
                COALESCE(retry_count, 0) as retry_count,
                COALESCE(max_retries, 3) as max_retries,
                checksum_sha256
         FROM downloads
         WHERE status = 'queued'
-        ORDER BY COALESCE(priority, 0) DESC,
-                 COALESCE(queue_position, 999999999) ASC,
-                 created_at ASC
+        ORDER BY created_at ASC
         LIMIT ?
         "#,
     )
@@ -494,21 +491,6 @@ pub async fn delete_downloads_by_status(
     Ok(ids)
 }
 
-pub async fn update_queue_position(
-    pool: &SqlitePool,
-    id: &str,
-    position: Option<i64>,
-) -> Result<()> {
-    sqlx::query("UPDATE downloads SET queue_position = ?, updated_at = ? WHERE id = ?")
-        .bind(position)
-        .bind(now())
-        .bind(id)
-        .execute(pool)
-        .await?;
-
-    Ok(())
-}
-
 pub async fn update_download_speed_limit(
     pool: &SqlitePool,
     id: &str,
@@ -516,21 +498,6 @@ pub async fn update_download_speed_limit(
 ) -> Result<Option<Download>> {
     sqlx::query("UPDATE downloads SET speed_limit_bps = ?, updated_at = ? WHERE id = ?")
         .bind(speed_limit_bps.map(to_i64))
-        .bind(now())
-        .bind(id)
-        .execute(pool)
-        .await?;
-
-    get_download(pool, id).await
-}
-
-pub async fn update_download_priority(
-    pool: &SqlitePool,
-    id: &str,
-    priority: i32,
-) -> Result<Option<Download>> {
-    sqlx::query("UPDATE downloads SET priority = ?, updated_at = ? WHERE id = ?")
-        .bind(priority)
         .bind(now())
         .bind(id)
         .execute(pool)
@@ -941,12 +908,59 @@ fn download_from_row(row: SqliteRow) -> std::result::Result<Download, sqlx::Erro
         created_at: row.try_get("created_at")?,
         updated_at: row.try_get("updated_at")?,
         speed_limit_bps: row.try_get("speed_limit_bps")?,
-        priority: row.try_get("priority")?,
-        queue_position: row.try_get("queue_position")?,
         retry_count: row.try_get("retry_count")?,
         max_retries: row.try_get("max_retries")?,
         checksum_sha256: row.try_get("checksum_sha256")?,
     }))
+}
+
+pub async fn get_media_format(pool: &SqlitePool, id: &str) -> Result<Option<String>> {
+    sqlx::query_scalar("SELECT media_format FROM downloads WHERE id = ?")
+        .bind(id)
+        .fetch_optional(pool)
+        .await
+        .map(|opt: Option<Option<String>>| opt.flatten())
+        .map_err(Into::into)
+}
+
+pub async fn insert_video_download(
+    pool: &SqlitePool,
+    download: &Download,
+    media_format: &str,
+) -> Result<()> {
+    sqlx::query(
+        r#"
+        INSERT INTO downloads (
+            id, url, file_name, destination, temp_path, total_bytes,
+            downloaded_bytes, status, speed_bps, error, created_at, updated_at,
+            speed_limit_bps, retry_count, max_retries,
+            queued_at, checksum_sha256, media_format
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        "#,
+    )
+    .bind(&download.id)
+    .bind(&download.url)
+    .bind(&download.file_name)
+    .bind(&download.destination)
+    .bind(&download.temp_path)
+    .bind(download.total_bytes.map(to_i64))
+    .bind(to_i64(download.downloaded_bytes))
+    .bind(download.status.as_str())
+    .bind(download.speed_bps)
+    .bind(&download.error)
+    .bind(&download.created_at)
+    .bind(&download.updated_at)
+    .bind(download.speed_limit_bps.map(to_i64))
+    .bind(download.retry_count as i64)
+    .bind(download.max_retries as i64)
+    .bind(now())
+    .bind(download.checksum_sha256.as_deref())
+    .bind(media_format)
+    .execute(pool)
+    .await?;
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -981,8 +995,6 @@ mod tests {
             "/tmp/file.zip".to_string(),
             "/tmp/file.zip.part".to_string(),
             None,
-            0,
-            None,
         );
 
         insert_download(&pool, &dl).await.expect("insert");
@@ -1004,8 +1016,6 @@ mod tests {
             "/tmp/file.zip".to_string(),
             "/tmp/file.zip.part".to_string(),
             None,
-            0,
-            None,
         );
         insert_download(&pool, &dl).await.expect("insert");
 
@@ -1024,28 +1034,27 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_next_queued_respects_priority_order() {
+    async fn get_next_queued_respects_fifo_order() {
         let pool = in_memory_pool().await;
 
-        for (id, priority) in [("low", -1_i32), ("high", 10_i32), ("normal", 0_i32)] {
-            let dl = crate::models::Download::new(
+        for (index, id) in ["first", "second", "third"].into_iter().enumerate() {
+            let mut dl = crate::models::Download::new(
                 id.to_string(),
                 format!("https://example.com/{id}.zip"),
                 format!("{id}.zip"),
                 format!("/tmp/{id}.zip"),
                 format!("/tmp/{id}.zip.part"),
                 None,
-                priority,
-                None,
             );
+            dl.created_at = format!("2025-01-01T00:00:0{index}Z");
+            dl.updated_at = dl.created_at.clone();
             insert_download(&pool, &dl).await.expect("insert");
         }
 
         let queued = get_next_queued(&pool, 10).await.expect("get_next_queued");
         assert_eq!(queued.len(), 3);
-        // Highest priority should come first
-        assert_eq!(queued[0].id, "high");
-        assert_eq!(queued[2].id, "low");
+        assert_eq!(queued[0].id, "first");
+        assert_eq!(queued[2].id, "third");
     }
 
     #[tokio::test]
@@ -1064,8 +1073,6 @@ mod tests {
                 format!("{id}.zip"),
                 format!("/tmp/{id}.zip"),
                 format!("/tmp/{id}.zip.part"),
-                None,
-                0,
                 None,
             );
             insert_download(&pool, &dl).await.expect("insert");

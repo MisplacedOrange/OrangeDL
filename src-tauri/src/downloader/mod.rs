@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::database;
+use crate::media_extractor;
 use crate::models::{
-    AppSettings, ChecksumResult, Download, DownloadStatus, ExecutorSummary, PreflightResult,
-    StartDownloadRequest, UpdateCheckResult, UpdateDownloadOptionsRequest, UpdateSettingsRequest,
+    AppSettings, ChecksumResult, Download, DownloadStatus, PreflightResult, StartDownloadRequest,
+    StartVideoDownloadRequest, UpdateCheckResult, UpdateDownloadOptionsRequest, UpdateSettingsRequest,
 };
 use dashmap::DashMap;
 use futures_util::StreamExt;
@@ -20,7 +21,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tokio::fs::OpenOptions;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::sync::{mpsc, Notify};
@@ -246,6 +247,10 @@ impl DownloadManager {
         Arc::clone(&self.notify)
     }
 
+    pub fn client(&self) -> Client {
+        self.client.clone()
+    }
+
     pub fn active_count(&self) -> usize {
         self.tasks.len()
     }
@@ -368,9 +373,6 @@ impl DownloadManager {
         let destination = reserve_unique_destination(&directory, &file_name).await?;
         let temp_path = part_path_for(&destination);
 
-        let priority = request.priority.unwrap_or(0);
-        let queue_position = request.queue_position;
-
         let download = Download::new(
             id.clone(),
             parsed_url.to_string(),
@@ -385,8 +387,6 @@ impl DownloadManager {
                 .speed_limit_bps
                 .filter(|value| *value > 0)
                 .or(settings.default_speed_limit_bps),
-            priority,
-            queue_position,
         );
 
         if let Err(error) = database::insert_download(&self.pool, &download).await {
@@ -543,15 +543,6 @@ impl DownloadManager {
         database::delete_downloads_by_status(&self.pool, DownloadStatus::Failed).await
     }
 
-    pub async fn reorder_download(&self, id: &str, position: u32) -> Result<Download> {
-        database::update_queue_position(&self.pool, id, Some(position as i64)).await?;
-        let download = database::get_download(&self.pool, id)
-            .await?
-            .ok_or(DownloadError::NotFound)?;
-        self.notify.notify_one();
-        Ok(download)
-    }
-
     pub async fn update_download_options(
         &self,
         request: UpdateDownloadOptionsRequest,
@@ -564,17 +555,9 @@ impl DownloadManager {
             database::update_download_speed_limit(&self.pool, id, Some(speed_limit)).await?;
         }
 
-        if let Some(priority) = request.priority {
-            database::update_download_priority(&self.pool, id, priority).await?;
-        }
-
         database::get_download(&self.pool, id)
             .await?
             .ok_or(DownloadError::NotFound)
-    }
-
-    pub async fn get_executor_summary(&self) -> Result<ExecutorSummary> {
-        database::get_executor_summary(&self.pool).await
     }
 
     pub async fn preflight_check(&self, raw_url: String) -> Result<PreflightResult> {
@@ -755,6 +738,48 @@ impl DownloadManager {
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
 
+    pub async fn start_video_download(
+        &self,
+        request: StartVideoDownloadRequest,
+    ) -> Result<Download> {
+        let id = Uuid::new_v4().to_string();
+        let settings = self.app_settings().await?;
+
+        let directory = prepare_download_directory(
+            request.directory.as_deref(),
+            PathBuf::from(&settings.default_download_directory),
+        )
+        .await?;
+
+        let sanitized_title = sanitize_file_name(&request.title, &id);
+        let placeholder_name = format!("{sanitized_title}.mp4");
+
+        // temp_path stores the yt-dlp working directory (per-download temp folder)
+        let temp_dir = self
+            .app
+            .path()
+            .app_data_dir()
+            .map_err(|e| DownloadError::Config(e.to_string()))?
+            .join("ytdlp-temp")
+            .join(&id);
+
+        let destination = directory.join(&placeholder_name);
+
+        let download = Download::new(
+            id.clone(),
+            request.url.clone(),
+            placeholder_name,
+            destination.to_string_lossy().to_string(),
+            temp_dir.to_string_lossy().to_string(),
+            None,
+        );
+
+        database::insert_video_download(&self.pool, &download, &request.quality).await?;
+        publish(&self.progress_tx, download.clone());
+        self.notify.notify_one();
+        Ok(download)
+    }
+
     pub fn spawn_queued_download(&self, id: String) {
         if self.tasks.contains_key(&id) {
             return;
@@ -777,12 +802,186 @@ impl DownloadManager {
         let progress_tx = self.progress_tx.clone();
         let tasks = Arc::clone(&self.tasks);
         let notify = Arc::clone(&self.notify);
+        let app = self.app.clone();
 
         tauri::async_runtime::spawn(async move {
-            Self::run_download(id.clone(), client, pool, control, progress_tx).await;
+            // Determine download type
+            let media_format = database::get_media_format(&pool, &id).await.unwrap_or(None);
+
+            if let Some(quality) = media_format {
+                if let Some(ytdlp_path) = media_extractor::find_ytdlp(&app) {
+                    if let Ok(Some(dl)) = database::get_download(&pool, &id).await {
+                        let temp_dir = PathBuf::from(&dl.temp_path);
+                        let dest_dir = PathBuf::from(&dl.destination)
+                            .parent()
+                            .map(|p| p.to_path_buf())
+                            .unwrap_or_else(|| PathBuf::from("."));
+
+                        Self::run_video_download(
+                            id.clone(),
+                            dl.url,
+                            quality,
+                            temp_dir,
+                            dest_dir,
+                            ytdlp_path,
+                            pool,
+                            progress_tx,
+                            control,
+                        )
+                        .await;
+                    }
+                } else {
+                    if let Ok(Some(d)) = database::set_status(
+                        &pool,
+                        &id,
+                        DownloadStatus::Failed,
+                        Some("yt-dlp not found — install it in Settings"),
+                    )
+                    .await
+                    {
+                        let _ = progress_tx.send(d);
+                    }
+                }
+            } else {
+                Self::run_download(id.clone(), client, pool, control, progress_tx).await;
+            }
+
             tasks.remove(&id);
             notify.notify_one();
         });
+    }
+
+    async fn run_video_download(
+        id: String,
+        url: String,
+        quality: String,
+        temp_dir: PathBuf,
+        dest_dir: PathBuf,
+        ytdlp_path: PathBuf,
+        pool: SqlitePool,
+        progress_tx: mpsc::UnboundedSender<Download>,
+        control: DownloadControl,
+    ) {
+        if let Ok(Some(d)) =
+            database::set_status(&pool, &id, DownloadStatus::Downloading, None).await
+        {
+            let _ = progress_tx.send(d);
+        }
+
+        let pool_for_progress = pool.clone();
+        let id_for_progress = id.clone();
+        let tx_for_progress = progress_tx.clone();
+
+        let result = media_extractor::run_ytdlp(
+            &url,
+            &quality,
+            &temp_dir,
+            &ytdlp_path,
+            &control.token,
+            move |prog| {
+                let pool = pool_for_progress.clone();
+                let id = id_for_progress.clone();
+                let tx = tx_for_progress.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = database::update_progress(
+                        &pool,
+                        &id,
+                        prog.downloaded_bytes,
+                        prog.total_bytes,
+                        prog.speed_bps,
+                    )
+                    .await;
+                    if let Ok(Some(d)) = database::get_download(&pool, &id).await {
+                        let _ = tx.send(d);
+                    }
+                });
+            },
+        )
+        .await;
+
+        match result {
+            Ok(src_file) => {
+                let file_name = src_file
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("video")
+                    .to_owned();
+
+                let final_dest =
+                    match media_extractor::unique_in_dir(&dest_dir, &file_name).await {
+                        Ok(p) => p,
+                        Err(e) => {
+                            let _ = database::set_status(
+                                &pool,
+                                &id,
+                                DownloadStatus::Failed,
+                                Some(&e.to_string()),
+                            )
+                            .await;
+                            return;
+                        }
+                    };
+
+                if let Err(e) = tokio::fs::rename(&src_file, &final_dest).await {
+                    let _ = database::set_status(
+                        &pool,
+                        &id,
+                        DownloadStatus::Failed,
+                        Some(&e.to_string()),
+                    )
+                    .await;
+                    return;
+                }
+
+                let _ = tokio::fs::remove_dir(&temp_dir).await;
+
+                let final_dest_str = final_dest.to_string_lossy().to_string();
+                let final_name = final_dest
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(&file_name)
+                    .to_owned();
+
+                let _ =
+                    database::update_download_destination(&pool, &id, &final_dest_str, &final_name)
+                        .await;
+
+                let size = tokio::fs::metadata(&final_dest)
+                    .await
+                    .map(|m| m.len())
+                    .unwrap_or(0);
+                let _ = database::update_progress(&pool, &id, size, Some(size), 0.0).await;
+
+                if let Ok(Some(d)) =
+                    database::set_status(&pool, &id, DownloadStatus::Completed, None).await
+                {
+                    let _ = progress_tx.send(d);
+                }
+            }
+            Err(media_extractor::MediaError::Cancelled) => {
+                let status = control.requested_status();
+                if status == DownloadStatus::Cancelled {
+                    let _ = tokio::fs::remove_dir_all(&temp_dir).await;
+                }
+                if let Ok(Some(d)) =
+                    database::set_status(&pool, &id, status, None).await
+                {
+                    let _ = progress_tx.send(d);
+                }
+            }
+            Err(e) => {
+                if let Ok(Some(d)) = database::set_status(
+                    &pool,
+                    &id,
+                    DownloadStatus::Failed,
+                    Some(&e.to_string()),
+                )
+                .await
+                {
+                    let _ = progress_tx.send(d);
+                }
+            }
+        }
     }
 
     async fn run_download(

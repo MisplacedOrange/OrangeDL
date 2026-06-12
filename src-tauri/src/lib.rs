@@ -5,6 +5,7 @@ mod commands;
 mod database;
 mod downloader;
 mod executor;
+mod media_extractor;
 mod models;
 mod tray;
 
@@ -121,9 +122,7 @@ pub fn run() {
             commands::clear_completed_downloads,
             commands::clear_cancelled_downloads,
             commands::clear_failed_downloads,
-            commands::reorder_download,
             commands::update_download_options,
-            commands::get_executor_summary,
             commands::preflight_check,
             commands::open_file,
             commands::reveal_in_explorer,
@@ -133,6 +132,10 @@ pub fn run() {
             commands::check_for_updates,
             commands::cleanup_history,
             commands::pick_directory,
+            commands::check_ytdlp,
+            commands::fetch_video_info,
+            commands::start_video_download,
+            commands::download_ytdlp,
         ])
         .run(tauri::generate_context!())
         .expect("error while running OrangeDL");

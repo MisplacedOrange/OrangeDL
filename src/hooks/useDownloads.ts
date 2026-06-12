@@ -8,7 +8,6 @@ import {
   onDownloadFinished,
   onDownloadProgress,
   onDownloadStatus,
-  onExecutorSummary,
   onTrayAddDownload,
   orangeApi,
 } from "../lib/tauri";
@@ -17,13 +16,15 @@ import type {
   ChecksumResult,
   Download,
   DownloadSummary,
-  ExecutorSummary,
   StartDownloadRequest,
+  StartVideoDownloadRequest,
   UpdateDownloadOptionsRequest,
   UpdateSettingsRequest,
 } from "../lib/types";
 
 type PushToast = (toast: { title: string; message?: string; kind: ToastKind }) => void;
+
+// --- Helpers -----------------------------------------------------------------
 
 function sortDownloads(downloads: Download[]) {
   return [...downloads].sort((a, b) => {
@@ -32,13 +33,6 @@ function sortDownloads(downloads: Download[]) {
 
     if (activeA !== activeB) {
       return activeA ? -1 : 1;
-    }
-
-    if (activeA && activeB) {
-      if (b.priority !== a.priority) return b.priority - a.priority;
-      const positionA = a.queuePosition ?? Number.MAX_SAFE_INTEGER;
-      const positionB = b.queuePosition ?? Number.MAX_SAFE_INTEGER;
-      if (positionA !== positionB) return positionA - positionB;
     }
 
     return Date.parse(b.createdAt) - Date.parse(a.createdAt);
@@ -62,27 +56,19 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: "creamsicle",
 };
 
-const DEFAULT_EXECUTOR_SUMMARY: ExecutorSummary = {
-  active: 0,
-  queued: 0,
-  paused: 0,
-  completed: 0,
-  failed: 0,
-  cancelled: 0,
-  maxConcurrent: 3,
-  totalSpeedBps: 0,
-};
+// --- Hook --------------------------------------------------------------------
 
 export function useDownloads(pushToast: PushToast) {
+  // --- State -----------------------------------------------------------------
+
   const [openAddModal, setOpenAddModal] = useState(false);
   const [addModalInitialUrl, setAddModalInitialUrl] = useState("");
   const [downloads, setDownloads] = useState<Download[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const [executorSummary, setExecutorSummary] = useState<ExecutorSummary>(
-    DEFAULT_EXECUTOR_SUMMARY,
-  );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+
+  // --- Core helpers ----------------------------------------------------------
 
   const upsertDownload = useCallback((download: Download) => {
     setDownloads((current) => {
@@ -98,9 +84,7 @@ export function useDownloads(pushToast: PushToast) {
 
       if (
         previous.status !== download.status ||
-        previous.createdAt !== download.createdAt ||
-        previous.priority !== download.priority ||
-        previous.queuePosition !== download.queuePosition
+        previous.createdAt !== download.createdAt
       ) {
         return sortDownloads(next);
       }
@@ -118,14 +102,12 @@ export function useDownloads(pushToast: PushToast) {
     setLoading(true);
     setLoadError("");
     try {
-      const [items, appSettings, summary] = await Promise.all([
+      const [items, appSettings] = await Promise.all([
         orangeApi.listDownloads(),
         orangeApi.getSettings(),
-        orangeApi.getExecutorSummary(),
       ]);
       setDownloads(sortDownloads(items));
       setSettings(appSettings);
-      setExecutorSummary(summary);
     } catch (error) {
       setLoadError(String(error));
       pushToast({
@@ -138,6 +120,8 @@ export function useDownloads(pushToast: PushToast) {
     }
   }, [pushToast]);
 
+  // --- Effects ---------------------------------------------------------------
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -146,7 +130,6 @@ export function useDownloads(pushToast: PushToast) {
     let unlistenProgress: (() => void) | undefined;
     let unlistenFinished: (() => void) | undefined;
     let unlistenStatus: (() => void) | undefined;
-    let unlistenExecutor: (() => void) | undefined;
     let disposed = false;
 
     void onDownloadProgress((download) => {
@@ -173,13 +156,6 @@ export function useDownloads(pushToast: PushToast) {
     }).then((unlisten) => {
       if (disposed) unlisten();
       else unlistenStatus = unlisten;
-    });
-
-    void onExecutorSummary((summary) => {
-      setExecutorSummary(summary);
-    }).then((unlisten) => {
-      if (disposed) unlisten();
-      else unlistenExecutor = unlisten;
     });
 
     let unlistenTray: (() => void) | undefined;
@@ -216,48 +192,61 @@ export function useDownloads(pushToast: PushToast) {
       unlistenProgress?.();
       unlistenFinished?.();
       unlistenStatus?.();
-      unlistenExecutor?.();
       unlistenTray?.();
       unlistenDeepLink?.();
     };
   }, [pushToast, upsertDownload]);
 
+  // --- Derived state ---------------------------------------------------------
+
   const summary = useMemo<DownloadSummary>(() => {
     return downloads.reduce(
       (total, download) => {
         total.total += 1;
-        if (download.status === "downloading") total.active += 1;
-        if (download.status === "queued") total.queued += 1;
+        if (download.status === "downloading" || download.status === "queued") {
+          total.active += 1;
+        }
         if (download.status === "completed") total.completed += 1;
         if (download.status === "failed") total.failed += 1;
         return total;
       },
-      { total: 0, active: 0, queued: 0, completed: 0, failed: 0 },
+      { total: 0, active: 0, completed: 0, failed: 0 },
     );
   }, [downloads]);
+
+  // --- Download actions ------------------------------------------------------
 
   const startDownloads = useCallback(
     async (requests: StartDownloadRequest[]) => {
       const results = await Promise.allSettled(requests.map((r) => orangeApi.startDownload(r)));
-      let queued = 0;
+      let added = 0;
       let failed = 0;
       for (const result of results) {
         if (result.status === "fulfilled") {
           upsertDownload(result.value);
-          queued++;
+          added++;
         } else {
           failed++;
         }
       }
-      if (queued > 0) {
+      if (added > 0) {
         pushToast({
-          title: queued === 1 ? "Download queued" : `${queued} downloads queued`,
+          title: added === 1 ? "Download added" : `${added} downloads added`,
           kind: "info",
         });
       }
       if (failed > 0) {
         pushToast({ title: `${failed} download${failed === 1 ? "" : "s"} failed to add`, kind: "error" });
       }
+    },
+    [pushToast, upsertDownload],
+  );
+
+  const startVideoDownload = useCallback(
+    async (request: StartVideoDownloadRequest) => {
+      const download = await orangeApi.startVideoDownload(request);
+      upsertDownload(download);
+      pushToast({ title: "Video download queued", message: download.fileName, kind: "info" });
     },
     [pushToast, upsertDownload],
   );
@@ -275,7 +264,7 @@ export function useDownloads(pushToast: PushToast) {
     async (id: string) => {
       const download = await orangeApi.resumeDownload(id);
       upsertDownload(download);
-      pushToast({ title: "Queued for resume", message: download.fileName, kind: "info" });
+      pushToast({ title: "Resuming", message: download.fileName, kind: "info" });
     },
     [pushToast, upsertDownload],
   );
@@ -307,7 +296,7 @@ export function useDownloads(pushToast: PushToast) {
   const resumeAll = useCallback(async () => {
     await orangeApi.resumeAllDownloads();
     await refresh();
-    pushToast({ title: "All downloads queued", kind: "info" });
+    pushToast({ title: "Resuming all downloads", kind: "info" });
   }, [pushToast, refresh]);
 
   const retryFailed = useCallback(async () => {
@@ -337,24 +326,6 @@ export function useDownloads(pushToast: PushToast) {
     if (ids.length > 0) removeDownloads(ids);
     pushToast({ title: `Cleared ${ids.length} failed`, kind: "success" });
   }, [pushToast, removeDownloads]);
-
-  const updateSettings = useCallback(
-    async (request: UpdateSettingsRequest) => {
-      const appSettings = await orangeApi.updateSettings(completeSettingsRequest(settings, request));
-      setSettings(appSettings);
-      pushToast({ title: "Settings saved", kind: "success" });
-    },
-    [pushToast, settings],
-  );
-
-  const reorderDownload = useCallback(
-    async (id: string, position: number) => {
-      const download = await orangeApi.reorderDownload(id, position);
-      upsertDownload(download);
-      pushToast({ title: "Queue order updated", message: download.fileName, kind: "info" });
-    },
-    [pushToast, upsertDownload],
-  );
 
   const updateDownloadOptions = useCallback(
     async (request: UpdateDownloadOptionsRequest) => {
@@ -409,10 +380,22 @@ export function useDownloads(pushToast: PushToast) {
     [pushToast],
   );
 
+  // --- Settings actions ------------------------------------------------------
+
+  const updateSettings = useCallback(
+    async (request: UpdateSettingsRequest) => {
+      const appSettings = await orangeApi.updateSettings(completeSettingsRequest(settings, request));
+      setSettings(appSettings);
+      pushToast({ title: "Settings saved", kind: "success" });
+    },
+    [pushToast, settings],
+  );
+
+  // --- Return ----------------------------------------------------------------
+
   return {
     downloads,
     summary,
-    executorSummary,
     loading,
     loadError,
     settings,
@@ -431,15 +414,17 @@ export function useDownloads(pushToast: PushToast) {
     clearCancelled,
     clearFailed,
     updateSettings,
-    reorderDownload,
     updateDownloadOptions,
     verifyDownloadChecksum,
     cleanupHistory,
+    startVideoDownload,
     openAddModal,
     addModalInitialUrl,
     clearOpenAddModal: () => setOpenAddModal(false),
   };
 }
+
+// --- Settings merge ----------------------------------------------------------
 
 function completeSettingsRequest(
   current: AppSettings,

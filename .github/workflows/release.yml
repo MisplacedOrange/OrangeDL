@@ -66,25 +66,27 @@ jobs:
           releaseBody: |
             ## OrangeDL ${{ env.RELEASE_TAG }}
 
-            ### Installation
-            Download `OrangeDL_*_x64-setup.exe` and run the installer.
+            ### Download
+            Download `OrangeDL.exe` for the portable app or `OrangeDL_*_x64-setup.exe` for the installer.
 
             ### Verification
-            A `.sha256` checksum file is provided alongside each artifact. Verify with:
+            A `.sha256` checksum file is provided alongside each release artifact. Verify with:
             ```powershell
+            Get-FileHash OrangeDL.exe -Algorithm SHA256
             Get-FileHash OrangeDL_*_x64-setup.exe -Algorithm SHA256
             ```
             Compare the output against the contents of the `.sha256` sidecar file.
           releaseDraft: true
           prerelease: false
 
-      - name: Generate checksums for installer artifacts
+      - name: Generate checksums for release artifacts
         shell: pwsh
         run: |
           $outDir = "release-artifacts"
           New-Item -ItemType Directory -Force $outDir | Out-Null
 
           $globs = @(
+            "src-tauri/target/release/orangedl.exe",
             "src-tauri/target/release/bundle/nsis/*.exe",
             "src-tauri/target/release/bundle/msi/*.msi"
           )
@@ -93,11 +95,21 @@ jobs:
             $files = Get-ChildItem -Path $glob -ErrorAction SilentlyContinue
             foreach ($file in $files) {
               $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLower()
-              "$hash  $($file.Name)" | Set-Content "$outDir\$($file.Name).sha256" -Encoding UTF8
-              Copy-Item $file.FullName "$outDir\$($file.Name)" -Force
+              $assetName = if ($file.Name -ieq "orangedl.exe") { "OrangeDL.exe" } else { $file.Name }
+              "$hash  $assetName" | Set-Content "$outDir\$assetName.sha256" -Encoding UTF8
+              Copy-Item $file.FullName "$outDir\$assetName" -Force
               Write-Host "Checksum for $($file.Name): $hash"
             }
           }
+
+      - name: Upload portable executable to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          draft: true
+          files: release-artifacts/OrangeDL.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload checksums to release
         uses: softprops/action-gh-release@v2

@@ -7,7 +7,7 @@ use crate::models::ExecutorSummary;
 use sqlx::SqlitePool;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::sync::Notify;
 
 pub struct DownloadExecutor {
@@ -75,7 +75,6 @@ impl DownloadExecutor {
         match database::get_executor_summary(&self.pool).await {
             Ok(summary) => {
                 let tooltip = build_tray_tooltip(&summary);
-                let _ = self.app.emit("executor-summary", &summary);
                 if let Some(tray) = self.app.tray_by_id("main") {
                     let _ = tray.set_tooltip(Some(tooltip.as_str()));
                 }
@@ -94,7 +93,7 @@ fn build_tray_tooltip(summary: &ExecutorSummary) -> String {
         parts.push(format!("{} active", summary.active));
     }
     if summary.queued > 0 {
-        parts.push(format!("{} queued", summary.queued));
+        parts.push(format!("{} pending", summary.queued));
     }
     let speed = format_speed_bps(summary.total_speed_bps);
     format!("OrangeDL \u{2014} {} \u{2014} {}", parts.join(", "), speed)

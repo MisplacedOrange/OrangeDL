@@ -27,7 +27,11 @@ export function ToastViewport({ toasts, onDismiss }: ToastViewportProps) {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={clsx("toast pointer-events-auto animate-panel-in", tones[toast.kind])}
+          className={clsx(
+            "toast pointer-events-auto",
+            toast.fading ? "animate-toast-out" : "animate-panel-in",
+            tones[toast.kind],
+          )}
         >
           <div className="flex items-start gap-3">
             <span className="toast-mark">{labels[toast.kind]}</span>

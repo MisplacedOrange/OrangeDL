@@ -45,7 +45,7 @@ export function formatEta(value?: number | null): string {
 
 export function statusLabel(status: DownloadStatus): string {
   const labels: Record<DownloadStatus, string> = {
-    queued: "Queued",
+    queued: "Pending",
     downloading: "Downloading",
     paused: "Paused",
     completed: "Complete",

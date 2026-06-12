@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 MisplacedOrange
 // SPDX-License-Identifier: GPL-3.0-only
 
+// --- Download ----------------------------------------------------------------
+
 export type DownloadStatus =
   | "queued"
   | "downloading"
@@ -25,11 +27,16 @@ export interface Download {
   createdAt: string;
   updatedAt: string;
   speedLimitBps: number | null;
-  priority: number;
-  queuePosition: number | null;
   retryCount: number;
   maxRetries: number;
   checksumSha256: string | null;
+}
+
+export interface DownloadSummary {
+  total: number;
+  active: number;
+  completed: number;
+  failed: number;
 }
 
 export interface StartDownloadRequest {
@@ -37,9 +44,22 @@ export interface StartDownloadRequest {
   fileName?: string | null;
   directory?: string | null;
   speedLimitBps?: number | null;
-  priority?: number | null;
-  queuePosition?: number | null;
 }
+
+export interface UpdateDownloadOptionsRequest {
+  id: string;
+  speedLimitBps?: number | null;
+  clearSpeedLimit?: boolean;
+}
+
+export interface ChecksumResult {
+  id: string;
+  computedSha256: string;
+  expectedSha256: string | null;
+  matched: boolean | null;
+}
+
+// --- Settings ----------------------------------------------------------------
 
 export interface AppSettings {
   defaultDownloadDirectory: string;
@@ -75,33 +95,7 @@ export interface UpdateSettingsRequest {
   theme?: string | null;
 }
 
-export interface UpdateDownloadOptionsRequest {
-  id: string;
-  speedLimitBps?: number | null;
-  clearSpeedLimit?: boolean;
-  priority?: number | null;
-}
-
-export interface ExecutorSummary {
-  active: number;
-  queued: number;
-  paused: number;
-  completed: number;
-  failed: number;
-  cancelled: number;
-  maxConcurrent: number;
-  totalSpeedBps: number;
-}
-
-export interface DownloadSummary {
-  total: number;
-  active: number;
-  queued: number;
-  completed: number;
-  failed: number;
-}
-
-export type PageId = "downloads" | "settings";
+// --- Preflight & updates -----------------------------------------------------
 
 export interface PreflightResult {
   url: string;
@@ -113,13 +107,6 @@ export interface PreflightResult {
   lastModified: string | null;
 }
 
-export interface ChecksumResult {
-  id: string;
-  computedSha256: string;
-  expectedSha256: string | null;
-  matched: boolean | null;
-}
-
 export interface UpdateCheckResult {
   currentVersion: string;
   latestVersion: string | null;
@@ -127,3 +114,40 @@ export interface UpdateCheckResult {
   updateAvailable: boolean;
   message: string;
 }
+
+// --- Video -------------------------------------------------------------------
+
+export interface YtDlpStatus {
+  found: boolean;
+  path: string | null;
+  version: string | null;
+}
+
+export interface VideoInfo {
+  title: string;
+  thumbnailUrl: string | null;
+  durationSecs: number | null;
+  uploader: string | null;
+  webpageUrl: string;
+  extractor: string;
+}
+
+export interface StartVideoDownloadRequest {
+  url: string;
+  quality: string;
+  title: string;
+  directory?: string | null;
+}
+
+export const VIDEO_QUALITY_OPTIONS = [
+  { value: "best", label: "Best available" },
+  { value: "1080p", label: "1080p" },
+  { value: "720p", label: "720p" },
+  { value: "480p", label: "480p" },
+  { value: "360p", label: "360p" },
+  { value: "audio", label: "Audio only" },
+] as const;
+
+// --- App ---------------------------------------------------------------------
+
+export type PageId = "downloads" | "settings";

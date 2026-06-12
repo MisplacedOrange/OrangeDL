@@ -14,24 +14,6 @@ interface SettingsPageProps {
   onCleanupHistory: () => void;
 }
 
-const runtimeCards = [
-  {
-    label: "SQLite ledger",
-    value: "Persistent",
-    detail: "Downloads are restored from local state.",
-  },
-  {
-    label: "Queue",
-    value: "Executor-managed",
-    detail: "Bounded concurrency controls active transfers.",
-  },
-  {
-    label: "Integrity",
-    value: "SHA256",
-    detail: "Completed files can be checked from each row.",
-  },
-];
-
 function mbps(value: number | null): string {
   return value ? String(value / 1024 / 1024) : "";
 }
@@ -65,11 +47,11 @@ function exportSettings(settings: AppSettings) {
 }
 
 export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPageProps) {
+  // --- State -----------------------------------------------------------------
+
   const [directory, setDirectory] = useState(settings.defaultDownloadDirectory);
   const [defaultSpeedLimit, setDefaultSpeedLimit] = useState(mbps(settings.defaultSpeedLimitBps));
   const [globalSpeedLimit, setGlobalSpeedLimit] = useState(mbps(settings.globalSpeedLimitBps));
-  const [maxConcurrent, setMaxConcurrent] = useState(String(settings.maxConcurrentDownloads ?? 3));
-  const [autoResume, setAutoResume] = useState(settings.autoResumeInterruptedDownloads ?? false);
   const [closeToTray, setCloseToTray] = useState(settings.closeToTray ?? true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(
     settings.notificationsEnabled ?? true,
@@ -94,6 +76,8 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
   const [error, setError] = useState("");
   const importInputRef = useRef<HTMLInputElement>(null);
 
+  // --- Handlers --------------------------------------------------------------
+
   const handlePickDirectory = useCallback(async () => {
     try {
       const picked = await orangeApi.pickDirectory();
@@ -107,8 +91,6 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
     setDirectory(settings.defaultDownloadDirectory);
     setDefaultSpeedLimit(mbps(settings.defaultSpeedLimitBps));
     setGlobalSpeedLimit(mbps(settings.globalSpeedLimitBps));
-    setMaxConcurrent(String(settings.maxConcurrentDownloads ?? 3));
-    setAutoResume(settings.autoResumeInterruptedDownloads ?? false);
     setCloseToTray(settings.closeToTray ?? true);
     setNotificationsEnabled(settings.notificationsEnabled ?? true);
     setNotificationSound(settings.notificationSound ?? false);
@@ -126,13 +108,10 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
   }
 
   function buildRequest(firstRunCompleted = settings.firstRunCompleted): UpdateSettingsRequest {
-    const numericConcurrent = parsePositiveInt(maxConcurrent, "Max concurrent downloads");
     return {
       defaultDownloadDirectory: directory.trim(),
       defaultSpeedLimitBps: parseMbps(defaultSpeedLimit),
       globalSpeedLimitBps: parseMbps(globalSpeedLimit),
-      maxConcurrentDownloads: numericConcurrent ?? 3,
-      autoResumeInterruptedDownloads: autoResume,
       closeToTray,
       notificationsEnabled,
       notificationSound,
@@ -171,9 +150,6 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
         defaultDownloadDirectory: parsed.defaultDownloadDirectory ?? settings.defaultDownloadDirectory,
         defaultSpeedLimitBps: parsed.defaultSpeedLimitBps ?? null,
         globalSpeedLimitBps: parsed.globalSpeedLimitBps ?? null,
-        maxConcurrentDownloads: parsed.maxConcurrentDownloads ?? settings.maxConcurrentDownloads,
-        autoResumeInterruptedDownloads:
-          parsed.autoResumeInterruptedDownloads ?? settings.autoResumeInterruptedDownloads,
         closeToTray: parsed.closeToTray ?? settings.closeToTray,
         notificationsEnabled: parsed.notificationsEnabled ?? settings.notificationsEnabled,
         notificationSound: parsed.notificationSound ?? settings.notificationSound,
@@ -205,12 +181,10 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
   }
 
   function resetDefaults() {
-    if (!window.confirm("Reset download, queue, notification, and history settings?")) return;
+    if (!window.confirm("Reset download, notification, and history settings?")) return;
     setDirectory("");
     setDefaultSpeedLimit("");
     setGlobalSpeedLimit("");
-    setMaxConcurrent("3");
-    setAutoResume(false);
     setCloseToTray(true);
     setNotificationsEnabled(true);
     setNotificationSound(false);
@@ -219,6 +193,8 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
     setHistoryRetentionDays("");
     setHistoryMaxRows("");
   }
+
+  // --- Render ----------------------------------------------------------------
 
   return (
     <div className="settings-page">
@@ -296,35 +272,6 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
               onChange={(event) => setAutoOpenFolder(event.target.checked)}
             />
             <span>Open containing folder when a download completes</span>
-          </label>
-        </section>
-
-        <section className="settings-group">
-          <div className="settings-section-title">
-            <span className="settings-section-mark">Q</span>
-            <div>
-              <h3>Queue</h3>
-              <p>Executor behavior and startup recovery.</p>
-            </div>
-          </div>
-
-          <label className="settings-field">
-            <span>Max concurrent downloads</span>
-            <input
-              value={maxConcurrent}
-              onChange={(event) => setMaxConcurrent(event.target.value)}
-              inputMode="numeric"
-              placeholder="3"
-            />
-          </label>
-
-          <label className="settings-field settings-field--checkbox">
-            <input
-              type="checkbox"
-              checked={autoResume}
-              onChange={(event) => setAutoResume(event.target.checked)}
-            />
-            <span>Auto-resume interrupted downloads on launch</span>
           </label>
 
           <label className="settings-field settings-field--checkbox">
@@ -515,19 +462,6 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
           </button>
         </div>
       </form>
-
-      <section className="settings-metrics" aria-label="Runtime settings">
-        {runtimeCards.map((card, index) => (
-          <article key={card.label} className="settings-metric-card">
-            <div className="metric-icon">{String(index + 1).padStart(2, "0")}</div>
-            <div>
-              <p className="metric-label">{card.label}</p>
-              <h3>{card.value}</h3>
-              <p>{card.detail}</p>
-            </div>
-          </article>
-        ))}
-      </section>
     </div>
   );
 }

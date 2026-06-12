@@ -5,19 +5,20 @@
 </p>
 
 <div align="center">
-  
+
 [![Stars](https://img.shields.io/github/stars/misplacedorange/OrangeDL?color=orange)](https://github.com/misplacedorange/OrangeDL/stargazers)
 [![License](https://img.shields.io/github/license/misplacedorange/OrangeDL?color=orange)](https://github.com/MisplacedOrange/OrangeDL/blob/main/LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-Language-E43716?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Tauri](https://img.shields.io/badge/Tauri-Framework-FFC107?logo=tauri&logoColor=white)](https://tauri.app)
 [![Status](https://img.shields.io/badge/Status-early%20release-orange)](https://github.com/misplacedorange/OrangeDL/releases)
+[![Sponsor](https://img.shields.io/github/sponsors/MisplacedOrange?color=orange&logo=github-sponsors)](https://github.com/sponsors/MisplacedOrange)
 
 </div>
 
 ## Current Features
 
 - Add downloads from HTTP or HTTPS URLs
-- Queue and run multiple downloads concurrently
+- Run multiple downloads concurrently
 - Use pause, resume, cancel, and retry controls
 - Attempt partial-file resume with HTTP `Range` support when the server allows it
 - Store local download records and app settings in SQLite under the app data directory
@@ -42,8 +43,7 @@ OrangeDL is still an early Windows-first project. Before treating a public relea
 
 ## Installation
 
-When a release is available, download it from GitHub.
-**Future plan is to create a setup installer executable.**
+When a release is available, download it from GitHub. The bootstrapper (`orangedl-bootstrap`) can automatically fetch and run the correct release for your platform.
 
 OrangeDL stores app data in the platform-specific application data directory managed by Tauri. Download records and related metadata are persisted locally on the user's machine.
 
@@ -127,7 +127,8 @@ Release packaging and Windows QA steps are documented in [docs/release.md](docs/
 
 You can support the project by starring the repository, reporting issues clearly, and sharing OrangeDL with people who need a desktop download manager.
 
-[Buy me a Coffee](https://buymeacoffee.com/misplacedorange)
+- [GitHub Sponsors](https://github.com/sponsors/MisplacedOrange)
+- [Buy me a Coffee](https://buymeacoffee.com/misplacedorange)
 
 ## License
 

@@ -1,6 +1,11 @@
+/* SPDX-FileCopyrightText: 2025 MisplacedOrange */
+/* SPDX-License-Identifier: GPL-3.0-only */
+
 /* ==========================================================================
    Application Layout, Navigation, And Shared Controls
    ========================================================================== */
+
+/* App shell */
 
 .app-shell {
   display: grid;
@@ -17,13 +22,7 @@
   background: var(--color-window-background);
 }
 
-.app-mark {
-  height: 50px;
-  width: 50px;
-  object-fit: contain;
-}
-
-/* Shared button primitives */
+/* Shared buttons */
 
 .primary-button,
 .secondary-button {
@@ -73,7 +72,7 @@
   box-shadow: none;
 }
 
-/* Top navigation */
+/* Navigation tabs */
 
 .client-tabs {
   display: flex;
@@ -116,7 +115,94 @@
   color: var(--color-brand-ink);
 }
 
-/* Shared text helpers tied to theme tokens */
+/* Window drag region & controls */
+
+.window-drag-region {
+  min-width: 24px;
+  align-self: stretch;
+  flex: 1 1 auto;
+}
+
+.window-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.window-control {
+  display: inline-grid;
+  height: 32px;
+  width: 42px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.window-controls .window-control {
+  height: 32px;
+  padding: 0;
+}
+
+.window-control span {
+  position: relative;
+  display: block;
+  height: 14px;
+  width: 14px;
+}
+
+.window-control--minimize span::before,
+.window-control--close span::before,
+.window-control--close span::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  height: 2px;
+  width: 13px;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+.window-control--minimize span::before {
+  transform: translate(-50%, -50%);
+}
+
+.window-control--maximize span::before {
+  position: absolute;
+  inset: 2px;
+  border: 2px solid currentColor;
+  border-radius: 2px;
+  content: "";
+}
+
+.window-control--close span::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.window-control--close span::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.window-control:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+
+.window-control--close:hover {
+  background: var(--color-danger-surface);
+  color: var(--color-danger-text);
+}
+
+/* Utility text colors */
 
 .text-danger {
   color: var(--color-danger);

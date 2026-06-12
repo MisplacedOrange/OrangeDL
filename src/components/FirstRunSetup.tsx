@@ -12,16 +12,12 @@ interface FirstRunSetupProps {
 
 export function FirstRunSetup({ settings, onSave }: FirstRunSetupProps) {
   const [directory, setDirectory] = useState(settings.defaultDownloadDirectory);
-  const [maxConcurrent, setMaxConcurrent] = useState(String(settings.maxConcurrentDownloads ?? 3));
-  const [autoResume, setAutoResume] = useState(settings.autoResumeInterruptedDownloads ?? false);
   const [closeToTray, setCloseToTray] = useState(settings.closeToTray ?? true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setDirectory(settings.defaultDownloadDirectory);
-    setMaxConcurrent(String(settings.maxConcurrentDownloads ?? 3));
-    setAutoResume(settings.autoResumeInterruptedDownloads ?? false);
     setCloseToTray(settings.closeToTray ?? true);
   }, [settings]);
 
@@ -37,18 +33,11 @@ export function FirstRunSetup({ settings, onSave }: FirstRunSetupProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    const concurrent = Number(maxConcurrent);
-    if (!Number.isInteger(concurrent) || concurrent < 1) {
-      setError("Max concurrency must be a positive integer.");
-      return;
-    }
 
     setSaving(true);
     try {
       await onSave({
         defaultDownloadDirectory: directory.trim(),
-        maxConcurrentDownloads: concurrent,
-        autoResumeInterruptedDownloads: autoResume,
         closeToTray,
         firstRunCompleted: true,
       });
@@ -72,7 +61,7 @@ export function FirstRunSetup({ settings, onSave }: FirstRunSetupProps) {
           <span className="settings-section-mark">01</span>
           <div>
             <h2 id="first-run-title">Set up OrangeDL</h2>
-            <p>Choose the defaults used by the queue executor.</p>
+            <p>Choose your default download folder.</p>
           </div>
         </div>
 
@@ -90,25 +79,6 @@ export function FirstRunSetup({ settings, onSave }: FirstRunSetupProps) {
             </button>
           </div>
         </div>
-
-        <label className="settings-field">
-          <span>Max concurrent downloads</span>
-          <input
-            value={maxConcurrent}
-            onChange={(event) => setMaxConcurrent(event.target.value)}
-            inputMode="numeric"
-            aria-label="Max concurrent downloads"
-          />
-        </label>
-
-        <label className="settings-field settings-field--checkbox">
-          <input
-            type="checkbox"
-            checked={autoResume}
-            onChange={(event) => setAutoResume(event.target.checked)}
-          />
-          <span>Auto-resume interrupted downloads on launch</span>
-        </label>
 
         <label className="settings-field settings-field--checkbox">
           <input

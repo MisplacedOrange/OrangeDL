@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2025 MisplacedOrange */
+/* SPDX-License-Identifier: GPL-3.0-only */
+
 /* ==========================================================================
    Responsive Layout
 
@@ -6,31 +9,27 @@
    ========================================================================== */
 
 @media (max-width: 980px) {
-  .download-toolbar {
-    grid-template-columns: 1fr;
+  .download-search {
+    order: 1;
+    flex-basis: 100%;
+    max-width: none;
   }
 
-  .filter-chip,
-  .add-download-button {
-    justify-self: stretch;
+  .toolbar-cluster {
+    margin-left: 0;
+  }
+
+  .filter-chip {
+    display: flex;
+    flex: 1 1 auto;
   }
 
   .filter-chip button {
     flex: 1;
   }
 
-  .download-overview,
-  .settings-metrics,
   .settings-grid-two {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .queue-strip {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .slot-rail {
-    grid-column: 1 / -1;
   }
 
   .download-statusbar {
@@ -39,19 +38,12 @@
 }
 
 @media (max-width: 640px) {
-  .download-overview,
-  .settings-metrics,
-  .settings-grid-two,
-  .queue-strip {
+  .settings-grid-two {
     grid-template-columns: 1fr;
   }
 
   .settings-header {
     flex-direction: column;
-  }
-
-  .drop-zone {
-    min-height: 70px;
   }
 
   .download-statusbar {

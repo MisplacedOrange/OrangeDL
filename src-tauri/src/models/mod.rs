@@ -64,10 +64,6 @@ pub struct StartDownloadRequest {
     pub directory: Option<String>,
     #[serde(default)]
     pub speed_limit_bps: Option<u64>,
-    #[serde(default)]
-    pub priority: Option<i32>,
-    #[serde(default)]
-    pub queue_position: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -130,8 +126,6 @@ pub struct UpdateDownloadOptionsRequest {
     pub speed_limit_bps: Option<u64>,
     #[serde(default)]
     pub clear_speed_limit: bool,
-    #[serde(default)]
-    pub priority: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,15 +159,12 @@ pub struct Download {
     pub created_at: String,
     pub updated_at: String,
     pub speed_limit_bps: Option<u64>,
-    pub priority: i32,
-    pub queue_position: Option<i64>,
     pub retry_count: u32,
     pub max_retries: u32,
     pub checksum_sha256: Option<String>,
 }
 
 impl Download {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: String,
         url: String,
@@ -181,8 +172,6 @@ impl Download {
         destination: String,
         temp_path: String,
         speed_limit_bps: Option<u64>,
-        priority: i32,
-        queue_position: Option<i64>,
     ) -> Self {
         let now = chrono::Utc::now().to_rfc3339();
 
@@ -202,8 +191,6 @@ impl Download {
             created_at: now.clone(),
             updated_at: now,
             speed_limit_bps,
-            priority,
-            queue_position,
             retry_count: 0,
             max_retries: 3,
             checksum_sha256: None,
@@ -226,8 +213,6 @@ pub struct DownloadRow {
     pub created_at: String,
     pub updated_at: String,
     pub speed_limit_bps: Option<i64>,
-    pub priority: i64,
-    pub queue_position: Option<i64>,
     pub retry_count: i64,
     pub max_retries: i64,
     pub checksum_sha256: Option<String>,
@@ -261,8 +246,6 @@ impl From<DownloadRow> for Download {
             created_at: row.created_at,
             updated_at: row.updated_at,
             speed_limit_bps: row.speed_limit_bps.and_then(non_negative_u64),
-            priority: row.priority as i32,
-            queue_position: row.queue_position,
             retry_count: row.retry_count.max(0) as u32,
             max_retries: row.max_retries.max(0) as u32,
             checksum_sha256: row.checksum_sha256,
@@ -308,4 +291,14 @@ pub struct UpdateCheckResult {
     pub release_url: Option<String>,
     pub update_available: bool,
     pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartVideoDownloadRequest {
+    pub url: String,
+    pub quality: String,
+    pub title: String,
+    #[serde(default)]
+    pub directory: Option<String>,
 }

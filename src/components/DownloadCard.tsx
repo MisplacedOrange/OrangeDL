@@ -16,12 +16,6 @@ interface DownloadCardProps {
   onVerifyChecksum?: (id: string, expectedSha256?: string | null) => Promise<ChecksumResult>;
   onOpenFile?: (id: string) => void;
   onRevealInExplorer?: (id: string) => void;
-  draggable?: boolean;
-  dragOver?: boolean;
-  onDragStart?: () => void;
-  onDragEnter?: () => void;
-  onDragEnd?: () => void;
-  onDrop?: () => void;
 }
 
 export const DownloadCard = memo(function DownloadCard({
@@ -34,12 +28,6 @@ export const DownloadCard = memo(function DownloadCard({
   onVerifyChecksum,
   onOpenFile,
   onRevealInExplorer,
-  draggable = false,
-  dragOver = false,
-  onDragStart,
-  onDragEnter,
-  onDragEnd,
-  onDrop,
 }: DownloadCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -47,7 +35,6 @@ export const DownloadCard = memo(function DownloadCard({
   const [speedDraft, setSpeedDraft] = useState(
     download.speedLimitBps ? String(download.speedLimitBps / 1024 / 1024) : "",
   );
-  const [priorityDraft, setPriorityDraft] = useState(download.priority);
   const [checksumDraft, setChecksumDraft] = useState(download.checksumSha256 ?? "");
   const [checksumResult, setChecksumResult] = useState<ChecksumResult | null>(null);
   const [savingOptions, setSavingOptions] = useState(false);
@@ -60,13 +47,11 @@ export const DownloadCard = memo(function DownloadCard({
   const canDelete = ["completed", "cancelled", "failed"].includes(download.status);
   const isRunning = download.status === "downloading";
   const isComplete = download.status === "completed";
-  const priority = priorityCopy(download.priority);
 
   useEffect(() => {
     setSpeedDraft(download.speedLimitBps ? String(download.speedLimitBps / 1024 / 1024) : "");
-    setPriorityDraft(download.priority);
     setChecksumDraft(download.checksumSha256 ?? "");
-  }, [download.checksumSha256, download.priority, download.speedLimitBps]);
+  }, [download.checksumSha256, download.speedLimitBps]);
 
   function copyUrl() {
     void navigator.clipboard.writeText(download.url).then(() => {
@@ -95,7 +80,6 @@ export const DownloadCard = memo(function DownloadCard({
         id: download.id,
         speedLimitBps: clearSpeedLimit ? null : Math.round(numericLimit * 1024 * 1024),
         clearSpeedLimit,
-        priority: priorityDraft,
       });
     } finally {
       setSavingOptions(false);
@@ -123,22 +107,7 @@ export const DownloadCard = memo(function DownloadCard({
         "download-row",
         isRunning && "is-active",
         expanded && "is-expanded",
-        draggable && "is-draggable",
-        dragOver && "is-drag-over",
       )}
-      draggable={draggable}
-      onDragStart={onDragStart}
-      onDragEnter={onDragEnter}
-      onDragOver={(event) => {
-        if (draggable) event.preventDefault();
-      }}
-      onDragEnd={onDragEnd}
-      onDrop={(event) => {
-        if (draggable) {
-          event.preventDefault();
-          onDrop?.();
-        }
-      }}
     >
       {/* Main row — click to expand. A div with button semantics rather than
           a real <button> because the action buttons inside it would otherwise
@@ -159,12 +128,10 @@ export const DownloadCard = memo(function DownloadCard({
         aria-label={`${download.fileName}, ${statusLabel(download.status)}, ${Math.round(progress)} percent`}
       >
         <div className="download-name-cell">
-          {draggable ? <span className="queue-grip" aria-hidden="true">::</span> : null}
           <span className={clsx("file-kind", isComplete && "is-complete")} />
           <div className="download-name-text">
             <div className="download-title-line">
               <h3 className="download-title truncate">{download.fileName}</h3>
-              <span className={clsx("priority-badge", priority.className)}>{priority.label}</span>
             </div>
             {!expanded && download.error ? (
               <p className="download-error">{download.error}</p>
@@ -285,18 +252,6 @@ export const DownloadCard = memo(function DownloadCard({
                   aria-label={`Speed limit for ${download.fileName}`}
                 />
               </label>
-              <label>
-                <span>Priority</span>
-                <select
-                  value={priorityDraft}
-                  onChange={(event) => setPriorityDraft(Number(event.target.value))}
-                  aria-label={`Priority for ${download.fileName}`}
-                >
-                  <option value={-5}>Low</option>
-                  <option value={0}>Normal</option>
-                  <option value={5}>High</option>
-                </select>
-              </label>
               <button type="button" className="detail-action" onClick={saveOptions} disabled={savingOptions}>
                 {savingOptions ? "Saving" : "Save"}
               </button>
@@ -370,12 +325,6 @@ export const DownloadCard = memo(function DownloadCard({
     </article>
   );
 });
-
-function priorityCopy(priority: number): { label: string; className: string } {
-  if (priority >= 5) return { label: "High", className: "priority-high" };
-  if (priority <= -5) return { label: "Low", className: "priority-low" };
-  return { label: "Normal", className: "priority-normal" };
-}
 
 function formatAdded(value: string): string {
   const date = new Date(value);

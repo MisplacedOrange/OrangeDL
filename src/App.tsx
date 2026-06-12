@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import { useCallback, useEffect, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { FirstRunSetup } from "./components/FirstRunSetup";
 import { ToastViewport } from "./components/ToastViewport";
 import { useDownloads } from "./hooks/useDownloads";
 import { useToasts } from "./hooks/useToasts";
-import orangeDlLogo from "./images/OrangeDL.svg";
 import { DownloadsPage } from "./pages/DownloadsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { applyTheme } from "./lib/themes";
@@ -18,11 +18,11 @@ export default function App() {
   const {
     downloads,
     summary,
-    executorSummary,
     loading,
     loadError,
     settings,
     startDownloads,
+    startVideoDownload,
     pauseDownload,
     resumeDownload,
     cancelDownload,
@@ -36,7 +36,6 @@ export default function App() {
     clearCancelled,
     clearFailed,
     updateSettings,
-    reorderDownload,
     updateDownloadOptions,
     verifyDownloadChecksum,
     cleanupHistory,
@@ -48,6 +47,8 @@ export default function App() {
   useEffect(() => {
     applyTheme(settings.theme);
   }, [settings.theme]);
+
+  // --- Command runner --------------------------------------------------------
 
   const runCommand = useCallback(
     async (action: () => Promise<void>) => {
@@ -63,6 +64,8 @@ export default function App() {
     },
     [pushToast],
   );
+
+  // --- Download handlers -----------------------------------------------------
 
   const handlePauseDownload = useCallback(
     (id: string) => void runCommand(() => pauseDownload(id)),
@@ -86,24 +89,35 @@ export default function App() {
   const handleClearCompleted = useCallback(() => void runCommand(clearCompleted), [clearCompleted, runCommand]);
   const handleClearCancelled = useCallback(() => void runCommand(clearCancelled), [clearCancelled, runCommand]);
   const handleClearFailed = useCallback(() => void runCommand(clearFailed), [clearFailed, runCommand]);
+  // --- Settings handlers -----------------------------------------------------
+
   const handleSaveSettings = useCallback(
     (request: Parameters<typeof updateSettings>[0]) => runCommand(() => updateSettings(request)),
     [runCommand, updateSettings],
   );
-  const handleReorderDownload = useCallback(
-    (id: string, position: number) => void runCommand(() => reorderDownload(id, position)),
-    [reorderDownload, runCommand],
-  );
   const handleCleanupHistory = useCallback(
     () => void runCommand(cleanupHistory),
     [cleanupHistory, runCommand],
+  );
+  // --- Window handlers -------------------------------------------------------
+
+  const handleMinimizeWindow = useCallback(
+    () => void getCurrentWindow().minimize(),
+    [],
+  );
+  const handleToggleMaximizeWindow = useCallback(
+    () => void getCurrentWindow().toggleMaximize(),
+    [],
+  );
+  const handleCloseWindow = useCallback(
+    () => void getCurrentWindow().close(),
+    [],
   );
 
   return (
     <div className="app-shell min-h-screen overflow-hidden bg-client">
       <div className="client-window">
         <nav className="client-tabs" aria-label="Primary navigation">
-          <img className="app-mark" src={orangeDlLogo} alt="OrangeDL" />
           <button
             type="button"
             onClick={() => setActivePage("downloads")}
@@ -119,6 +133,33 @@ export default function App() {
           >
             Settings
           </button>
+          <div className="window-drag-region" data-tauri-drag-region />
+          <div className="window-controls" aria-label="Window controls">
+            <button
+              type="button"
+              className="window-control window-control--minimize"
+              onClick={handleMinimizeWindow}
+              aria-label="Minimize window"
+            >
+              <span aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="window-control window-control--maximize"
+              onClick={handleToggleMaximizeWindow}
+              aria-label="Maximize window"
+            >
+              <span aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="window-control window-control--close"
+              onClick={handleCloseWindow}
+              aria-label="Close window"
+            >
+              <span aria-hidden="true" />
+            </button>
+          </div>
         </nav>
 
         <main className="min-h-0 flex-1">
@@ -126,17 +167,15 @@ export default function App() {
             <DownloadsPage
               downloads={downloads}
               summary={summary}
-              executorSummary={executorSummary}
               loading={loading}
               loadError={loadError}
               settings={settings}
               onStartDownloads={startDownloads}
-              onUpdateSettings={handleSaveSettings}
+              onStartVideoDownload={startVideoDownload}
               onPauseDownload={handlePauseDownload}
               onResumeDownload={handleResumeDownload}
               onCancelDownload={handleCancelDownload}
               onDeleteDownload={handleDeleteDownload}
-              onReorderDownload={handleReorderDownload}
               onUpdateDownloadOptions={updateDownloadOptions}
               onVerifyDownloadChecksum={verifyDownloadChecksum}
               onOpenFile={openFile}

@@ -29,12 +29,9 @@ dist/
 .codex/
 .agents/
 agents/
-COMMIT.md
-docs/readme-handoff.md
-docs/acceptance-criteria.md
-docs/plan.md
-docs/ux-spec.md
-docs/qa-checklist.md
+plan.md
+
+
 
 # RustRover
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

@@ -1,9 +1,14 @@
+/* SPDX-FileCopyrightText: 2025 MisplacedOrange */
+/* SPDX-License-Identifier: GPL-3.0-only */
+
 /* ==========================================================================
    Settings Page
 
-   Defaults form, appearance/theme picker, local-state messaging, runtime
-   metric cards, and help notes.
+   Covers the page header, settings card/group layout, form fields,
+   the theme picker, inline controls, and errors/actions.
    ========================================================================== */
+
+/* Page header */
 
 .settings-page {
   height: 100%;
@@ -45,18 +50,16 @@
   padding: 7px 10px;
 }
 
-.settings-card,
-.settings-note {
-  border: var(--border-card) solid var(--color-border-strong);
-  border-radius: var(--radius-panel);
-  background: var(--color-surface-panel);
-  box-shadow: var(--shadow-card);
-}
+/* Card & group layout */
 
 .settings-card {
   display: grid;
   gap: 18px;
   padding: 20px;
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface-panel);
+  box-shadow: var(--shadow-card);
 }
 
 .settings-group {
@@ -91,19 +94,19 @@
   letter-spacing: 0.06em;
 }
 
-.settings-section-title h3,
-.settings-note h3 {
+.settings-section-title h3 {
   color: var(--color-text-primary);
   font-size: 17px;
   font-weight: 900;
 }
 
 .settings-section-title p,
-.settings-note p,
 .settings-field small {
   color: var(--color-text-secondary);
   font-size: 13px;
 }
+
+/* Form fields */
 
 .settings-field {
   display: grid;
@@ -234,25 +237,7 @@
   line-height: 1.4;
 }
 
-/* Errors, actions, links */
-
-.settings-error {
-  margin-top: 16px;
-  border: var(--border-card) solid var(--color-danger-border);
-  border-radius: var(--radius-control);
-  background: var(--color-danger-surface);
-  color: var(--color-danger-text);
-  font-size: 13px;
-  font-weight: 800;
-  padding: 10px 12px;
-}
-
-.settings-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
+/* Inline controls */
 
 .settings-inline {
   display: flex;
@@ -287,72 +272,33 @@
   gap: 14px;
 }
 
+/* Errors, results & actions */
+
+.settings-error {
+  margin-top: 16px;
+  border: var(--border-card) solid var(--color-danger-border);
+  border-radius: var(--radius-control);
+  background: var(--color-danger-surface);
+  color: var(--color-danger-text);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 10px 12px;
+}
+
 .settings-result {
   color: var(--color-text-secondary);
   font-size: 13px;
   font-weight: 800;
 }
 
-.settings-note {
-  margin-top: 16px;
-  padding: 18px 20px;
-}
-
-.settings-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.settings-metric-card {
+.settings-actions {
   display: flex;
-  min-height: 116px;
-  gap: 12px;
-  border: var(--border-card) solid var(--color-border-strong);
-  border-left: 5px solid var(--color-brand-primary);
-  border-radius: var(--radius-panel);
-  background: var(--color-surface-row);
-  box-shadow: var(--shadow-card);
-  padding: 16px;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
 }
 
-.metric-icon {
-  display: grid;
-  height: 34px;
-  width: 34px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: var(--border-card) solid var(--color-border-strong);
-  border-radius: var(--radius-control);
-  background: var(--color-brand-primary);
-  color: var(--color-brand-ink);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.settings-metric-card h3 {
-  margin-top: 3px;
-  color: var(--color-text-primary);
-  font-size: 15px;
-  font-weight: 900;
-}
-
-.settings-metric-card p {
-  margin-top: 5px;
-  color: var(--color-text-secondary);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.settings-metric-card .metric-label {
-  margin-top: 0;
-  color: var(--color-text-accent);
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
+/* First run panel */
 
 .first-run-panel {
   width: min(560px, 100%);

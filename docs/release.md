@@ -1,129 +1,59 @@
-# OrangeDL Release Guide
+# OrangeDL 1.1.0 Release Notes
 
-This guide documents the Windows-first release path for OrangeDL. It is intentionally conservative: do not present a build as broadly ready until the release blockers in `plan.md` are resolved and the clean Windows VM checklist passes.
+## What's New
 
-## Current Artifact Posture
+### Themes
+Five built-in color themes are available from Settings → Appearance. Themes apply instantly and persist across restarts.
 
-- OrangeDL is Windows-first. Other platform artifacts should be treated as experimental unless a release explicitly says otherwise.
-- The desktop installer is an NSIS Windows installer.
-- The current NSIS configuration is per-machine, so installing normally requires administrator approval through User Account Control.
-- Windows artifacts are unsigned unless the release notes explicitly say they are Authenticode-signed.
-- Unsigned installers may trigger Microsoft Defender SmartScreen or "Unknown publisher" warnings.
-- SHA-256 sidecars are used for integrity verification. They confirm that a downloaded file matches the published artifact, but they do not prove publisher identity and do not replace code signing.
-- The app currently supports HTTP and HTTPS downloads only. Do not imply support for torrents, browser extensions, video extraction, scheduling, cloud sync, credential/cookie-authenticated downloads, or other protocols.
+- **Creamsicle** — Pastel orange on warm cream, the OrangeDL classic (default)
+- **Midnight Marmalade** — Dark cocoa with a bright orange glow
+- **Peach Fizz** — Soft coral and peach, sweet and fizzy
+- **Mint Squeeze** — Cool pastel mint with an orange twist
+- **Bubblegum** — Playful pastel pink, extra cheerful
 
-## Prerequisites
+### Video Downloads (yt-dlp integration)
+OrangeDL can now download from YouTube, Bilibili, and other platforms supported by [yt-dlp](https://github.com/yt-dlp/yt-dlp).
 
-- Node.js 18 or newer
-- Rust stable
-- Tauri v2 Windows prerequisites
-- A clean working tree
-- A version tag such as `vX.Y.Z`
-- Matching versions in `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`
+- Automatic yt-dlp detection and one-click install from within the app
+- Thumbnail preview, title, uploader, and duration shown before confirming the download
+- Quality selector: Best, 1080p, 4K, Audio only
+- Output saved to the configured download folder
 
-## Release Readiness Gate
+### Settings: Export and Import
+Settings can now be exported to a JSON file and restored from one — useful for backups or syncing preferences across machines.
 
-Do not publish a broad Windows release until these are true:
+## Bug Fixes
 
-- App build, Rust app tests, and Rust app clippy pass.
-- Bootstrapper build, tests, and clippy pass. (Note: bootstrapper clippy currently fails at `bootstrapper/src/main.rs:257` — this must be fixed before release.)
-- The release workflow is known to publish against the intended tag for both tag pushes and manual dispatch.
-- Version numbers in package metadata, Tauri config, README, and release notes agree.
-- Clean Windows VM QA passes using the final artifacts. See `docs/qa-checklist.md`.
-- Release notes clearly state unsigned/per-machine installer behavior and current product limitations.
-- Notification sound and background update notification toggles are removed from the Settings UI (they are stored but do nothing).
-- Global speed limit is either aggregate-enforced or renamed to reflect that it applies per-transfer.
+- **Resume after remote change** — When a download resumes, OrangeDL now re-fetches the full file if the server's ETag or Last-Modified header changed. Previously, resuming against a replaced file would continue writing stale bytes into the existing partial download.
+- **Progress update guard** — Progress events now only update downloads that are actively in the `downloading` state, preventing stale events from overwriting a terminal status.
+- **Settings load performance** — App settings are now loaded in a single batched query instead of one query per key.
 
-## Local Validation
+## Release Artifacts
 
-Run these before tagging:
+| File | Description |
+|---|---|
+| `OrangeDL.exe` | Portable executable — run directly, no install needed |
+| `OrangeDL.exe.sha256` | SHA-256 checksum for the portable exe |
+| `OrangeDL_*_x64-setup.exe` | NSIS installer for a standard Windows installation |
+| `OrangeDL_*_x64-setup.exe.sha256` | SHA-256 checksum for the installer |
+| `orangedl-bootstrap-windows-x64.exe` | Windows bootstrapper |
+| `orangedl-bootstrap-windows-x64.exe.sha256` | SHA-256 checksum |
+| `orangedl-bootstrap-linux-x64` | Linux bootstrapper |
+| `orangedl-bootstrap-linux-x64.sha256` | SHA-256 checksum |
+| `orangedl-bootstrap-macos` | macOS bootstrapper |
+| `orangedl-bootstrap-macos.sha256` | SHA-256 checksum |
 
+Verify a download on Windows:
 ```powershell
-npm ci
-npm run build
-cargo fmt --all --manifest-path src-tauri/Cargo.toml -- --check
-cargo check --manifest-path src-tauri/Cargo.toml --locked
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml --locked
+(Get-FileHash OrangeDL.exe -Algorithm SHA256).Hash
 ```
 
-For a manual smoke test, start OrangeDL, add an HTTP or HTTPS URL, pause it, resume it, let it complete, quit, reopen the app, and confirm the history row is still present.
+Compare the output to the contents of `OrangeDL.exe.sha256`.
 
-## GitHub Release Build
+## Release Checklist
 
-1. Update versions in `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
-2. Commit the release changes.
-3. Create and push a version tag:
-
-```powershell
-git tag vX.Y.Z
-git push origin vX.Y.Z
-```
-
-4. Wait for the `Release` workflow to finish.
-5. Inspect the draft GitHub Release.
-6. Confirm it contains the NSIS installer, bootstrapper binaries, and `.sha256` files.
-7. Download the artifacts from the draft release and verify checksums locally.
-8. Run clean Windows VM QA.
-9. Publish the release after verification.
-
-## Artifact Verification
-
-Verify installer checksums before publishing and document the expected checksum in the GitHub release body:
-
-```powershell
-Get-FileHash .\OrangeDL_*_x64-setup.exe -Algorithm SHA256
-Get-Content .\OrangeDL_*_x64-setup.exe.sha256
-```
-
-The hash from `Get-FileHash` must match the checksum sidecar exactly.
-
-Recommended user-facing checksum wording:
-
-> Verify the SHA-256 checksum before installing. The checksum confirms file integrity against this release asset, but it does not replace publisher signing.
-
-## Bootstrapper Validation
-
-Run:
-
-```powershell
-.\orangedl-bootstrap-windows-x64.exe --download-only
-.\orangedl-bootstrap-windows-x64.exe --tag vX.Y.Z --download-only
-```
-
-The bootstrapper should select the Windows x64 NSIS installer, verify the `.sha256` sidecar when present, and fail closed if verification does not match. If `--asset-url` is documented for power users, state that it trusts the specified HTTPS asset source and is not the normal release path.
-
-## Clean Windows VM QA
-
-Before broad release, validate the final release artifacts on a clean Windows machine. Use [windows-vm-qa.md](windows-vm-qa.md) as the checklist.
-
-Minimum smoke coverage:
-
-- Checksum verification before install.
-- UAC and SmartScreen behavior recorded.
-- Installer launches and completes.
-- OrangeDL appears in Start Menu and Windows Apps uninstall list.
-- `orangedl://add?url=https%3A%2F%2Fexample.com%2Ffile.zip` opens the add flow.
-- Add, pause, resume, cancel, retry, and complete downloads.
-- Quit and reopen; history survives restart.
-- Uninstall removes binaries and shortcuts without deleting downloaded files.
-
-## Signing
-
-Public Windows releases should be Authenticode-signed with a timestamp server before broad distribution. Until signing is configured, release notes must clearly state that Windows may show SmartScreen warnings and User Account Control prompts.
-
-Do not describe unsigned installers as "trusted", "verified", or "safe" based only on checksum sidecars.
-
-## Release Notes Language
-
-Use direct language in each Windows release:
-
-```text
-Windows installer status: unsigned, per-machine NSIS installer.
-
-This build may show Microsoft Defender SmartScreen or "Unknown publisher" warnings because the installer is not Authenticode-signed. Installing may require administrator approval through User Account Control.
-
-Verify the SHA-256 checksum published with this release before installing. Checksums confirm artifact integrity, not publisher identity.
-
-Known limitations: OrangeDL currently supports HTTP and HTTPS downloads only. Resume support depends on the remote server. Browser extensions, torrents, video extraction, credential/cookie-authenticated downloads, scheduling, and cloud sync are not supported in this release. The global speed limit applies per transfer, not in aggregate across all active transfers. Each download attempt has a 24-hour streaming timeout; slow connections on large files will retry and resume automatically without data loss.
-```
+1. Build and verify the app and bootstrapper on Windows.
+2. Publish the Git tag for `v1.1.0`.
+3. Confirm the draft GitHub release contains the portable exe, installer, bootstrapper binaries, and all `.sha256` sidecar files.
+4. Verify checksums before publishing.
+5. Publish the release.
