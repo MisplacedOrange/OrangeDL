@@ -3,6 +3,7 @@
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 use tokio::io::AsyncBufReadExt;
@@ -59,7 +60,6 @@ pub struct YtDlpProgress {
     pub total_bytes: Option<u64>,
     pub speed_bps: f64,
 }
-
 
 fn ytdlp_exe() -> &'static str {
     if cfg!(windows) {
@@ -122,6 +122,7 @@ pub async fn fetch_video_info(url: &str, ytdlp_path: &Path) -> Result<VideoInfo>
             "--no-playlist",
             "--no-warnings",
             "--quiet",
+            "--",
             url,
         ])
         .output()
@@ -132,8 +133,7 @@ pub async fn fetch_video_info(url: &str, ytdlp_path: &Path) -> Result<VideoInfo>
         let err = String::from_utf8_lossy(&output.stderr);
         let msg = err
             .lines()
-            .filter(|l| !l.trim().is_empty())
-            .last()
+            .rfind(|l| !l.trim().is_empty())
             .unwrap_or("yt-dlp failed")
             .to_owned();
         return Err(MediaError::Process(msg));
@@ -175,34 +175,82 @@ pub async fn download_ytdlp_binary(app: &AppHandle, client: &Client) -> Result<P
 
     let exe_path = ytdlp_dir.join(ytdlp_exe());
 
-    let url = if cfg!(windows) {
-        "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
+    let asset_name = if cfg!(windows) {
+        "yt-dlp.exe"
     } else if cfg!(target_os = "macos") {
-        "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
+        "yt-dlp_macos"
     } else {
-        "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
+        "yt-dlp"
     };
+    let url = format!("https://github.com/yt-dlp/yt-dlp/releases/latest/download/{asset_name}");
 
     let bytes = client
-        .get(url)
+        .get(&url)
         .header("User-Agent", "OrangeDL yt-dlp-installer")
         .send()
         .await?
+        .error_for_status()?
         .bytes()
         .await?;
 
-    tokio::fs::write(&exe_path, &bytes).await?;
+    match fetch_expected_sha256(client, asset_name).await {
+        Some(expected) => {
+            let actual = format!("{:x}", Sha256::digest(&bytes));
+            if actual != expected {
+                return Err(MediaError::App(format!(
+                    "yt-dlp download failed checksum verification (expected {expected}, got {actual})"
+                )));
+            }
+        }
+        None => eprintln!("OrangeDL: yt-dlp checksum file unavailable — skipping verification"),
+    }
+
+    // Write to a temp path and rename so an interrupted download can never
+    // leave a truncated binary at the final location.
+    let temp_path = ytdlp_dir.join(format!("{asset_name}.download"));
+    tokio::fs::write(&temp_path, &bytes).await?;
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let meta = tokio::fs::metadata(&exe_path).await?;
+        let meta = tokio::fs::metadata(&temp_path).await?;
         let mut perms = meta.permissions();
         perms.set_mode(0o755);
-        tokio::fs::set_permissions(&exe_path, perms).await?;
+        tokio::fs::set_permissions(&temp_path, perms).await?;
     }
 
+    tokio::fs::rename(&temp_path, &exe_path).await?;
+
     Ok(exe_path)
+}
+
+/// Look up the asset's hash in the SHA2-256SUMS file yt-dlp publishes with
+/// each release. `None` when the sums file can't be fetched or parsed; a
+/// fetched file that lacks the asset still yields `None`.
+async fn fetch_expected_sha256(client: &Client, asset_name: &str) -> Option<String> {
+    let sums = client
+        .get("https://github.com/yt-dlp/yt-dlp/releases/latest/download/SHA2-256SUMS")
+        .header("User-Agent", "OrangeDL yt-dlp-installer")
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?
+        .text()
+        .await
+        .ok()?;
+
+    parse_sha256_sums(&sums, asset_name)
+}
+
+fn parse_sha256_sums(sums: &str, asset_name: &str) -> Option<String> {
+    sums.lines().find_map(|line| {
+        let mut parts = line.split_whitespace();
+        let hash = parts.next()?;
+        let name = parts.next()?;
+        (name == asset_name && hash.len() == 64 && hash.chars().all(|c| c.is_ascii_hexdigit()))
+            .then(|| hash.to_ascii_lowercase())
+    })
 }
 
 /// Map a quality label to a yt-dlp format selector string.
@@ -270,6 +318,7 @@ pub async fn run_ytdlp(
             "--progress-template",
             progress_template,
             "--continue",
+            "--",
             url,
         ])
         .stdout(std::process::Stdio::null())
@@ -351,4 +400,52 @@ pub async fn unique_in_dir(dir: &Path, file_name: &str) -> std::io::Result<PathB
     }
 
     Ok(dir.join(file_name)) // fallback: overwrite
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const HASH: &str = "9f2b7c1d8a3e5f60912b7c1d8a3e5f60912b7c1d8a3e5f60912b7c1d8a3e5f60";
+
+    #[test]
+    fn sha256_sums_finds_matching_asset() {
+        let sums = format!("{}  yt-dlp\n{HASH}  yt-dlp.exe\n", "0".repeat(64));
+        assert_eq!(
+            parse_sha256_sums(&sums, "yt-dlp.exe"),
+            Some(HASH.to_owned())
+        );
+    }
+
+    #[test]
+    fn sha256_sums_lowercases_hash() {
+        let sums = format!("{}  yt-dlp.exe", HASH.to_ascii_uppercase());
+        assert_eq!(
+            parse_sha256_sums(&sums, "yt-dlp.exe"),
+            Some(HASH.to_owned())
+        );
+    }
+
+    #[test]
+    fn sha256_sums_rejects_missing_or_malformed_entries() {
+        assert_eq!(parse_sha256_sums("", "yt-dlp.exe"), None);
+        let sums = format!("{HASH}  yt-dlp_macos");
+        assert_eq!(parse_sha256_sums(&sums, "yt-dlp.exe"), None);
+        assert_eq!(parse_sha256_sums("abc123  yt-dlp.exe", "yt-dlp.exe"), None);
+        let not_hex = format!("{}  yt-dlp.exe", "z".repeat(64));
+        assert_eq!(parse_sha256_sums(&not_hex, "yt-dlp.exe"), None);
+    }
+
+    #[test]
+    fn progress_line_parses_template_output() {
+        let prog = parse_progress("ODLPROG:1024:4096:512.5").expect("should parse");
+        assert_eq!(prog.downloaded_bytes, 1024);
+        assert_eq!(prog.total_bytes, Some(4096));
+        assert_eq!(prog.speed_bps, 512.5);
+    }
+
+    #[test]
+    fn progress_line_ignores_other_output() {
+        assert!(parse_progress("[download] 42% of ~10MB").is_none());
+    }
 }

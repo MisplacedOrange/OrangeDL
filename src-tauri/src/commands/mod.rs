@@ -4,7 +4,8 @@
 use crate::media_extractor::{self, VideoInfo, YtDlpStatus};
 use crate::models::{
     AppSettings, ChecksumResult, Download, PreflightResult, StartDownloadRequest,
-    StartVideoDownloadRequest, UpdateCheckResult, UpdateDownloadOptionsRequest, UpdateSettingsRequest,
+    StartVideoDownloadRequest, UpdateCheckResult, UpdateDownloadOptionsRequest,
+    UpdateSettingsRequest,
 };
 use crate::AppState;
 use tauri::{AppHandle, State};
@@ -247,9 +248,10 @@ pub async fn check_ytdlp(app: AppHandle) -> YtDlpStatus {
 
 #[tauri::command]
 pub async fn fetch_video_info(app: AppHandle, url: String) -> Result<VideoInfo, String> {
-    let ytdlp = media_extractor::find_ytdlp(&app)
-        .ok_or_else(|| "yt-dlp not found".to_owned())?;
-    media_extractor::fetch_video_info(&url, &ytdlp)
+    let parsed = url::Url::parse(url.trim()).map_err(|e| e.to_string())?;
+    crate::downloader::validate_download_url(&parsed).map_err(|e| e.to_string())?;
+    let ytdlp = media_extractor::find_ytdlp(&app).ok_or_else(|| "yt-dlp not found".to_owned())?;
+    media_extractor::fetch_video_info(parsed.as_str(), &ytdlp)
         .await
         .map_err(|e| e.to_string())
 }

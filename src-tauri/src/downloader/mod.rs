@@ -5,7 +5,8 @@ use crate::database;
 use crate::media_extractor;
 use crate::models::{
     AppSettings, ChecksumResult, Download, DownloadStatus, PreflightResult, StartDownloadRequest,
-    StartVideoDownloadRequest, UpdateCheckResult, UpdateDownloadOptionsRequest, UpdateSettingsRequest,
+    StartVideoDownloadRequest, UpdateCheckResult, UpdateDownloadOptionsRequest,
+    UpdateSettingsRequest,
 };
 use dashmap::DashMap;
 use futures_util::StreamExt;
@@ -742,6 +743,9 @@ impl DownloadManager {
         &self,
         request: StartVideoDownloadRequest,
     ) -> Result<Download> {
+        let parsed_url = Url::parse(request.url.trim())?;
+        validate_download_url(&parsed_url)?;
+
         let id = Uuid::new_v4().to_string();
         let settings = self.app_settings().await?;
 
@@ -767,7 +771,7 @@ impl DownloadManager {
 
         let download = Download::new(
             id.clone(),
-            request.url.clone(),
+            parsed_url.to_string(),
             placeholder_name,
             destination.to_string_lossy().to_string(),
             temp_dir.to_string_lossy().to_string(),
@@ -851,6 +855,7 @@ impl DownloadManager {
         });
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn run_video_download(
         id: String,
         url: String,
@@ -907,20 +912,19 @@ impl DownloadManager {
                     .unwrap_or("video")
                     .to_owned();
 
-                let final_dest =
-                    match media_extractor::unique_in_dir(&dest_dir, &file_name).await {
-                        Ok(p) => p,
-                        Err(e) => {
-                            let _ = database::set_status(
-                                &pool,
-                                &id,
-                                DownloadStatus::Failed,
-                                Some(&e.to_string()),
-                            )
-                            .await;
-                            return;
-                        }
-                    };
+                let final_dest = match media_extractor::unique_in_dir(&dest_dir, &file_name).await {
+                    Ok(p) => p,
+                    Err(e) => {
+                        let _ = database::set_status(
+                            &pool,
+                            &id,
+                            DownloadStatus::Failed,
+                            Some(&e.to_string()),
+                        )
+                        .await;
+                        return;
+                    }
+                };
 
                 if let Err(e) = tokio::fs::rename(&src_file, &final_dest).await {
                     let _ = database::set_status(
@@ -963,20 +967,14 @@ impl DownloadManager {
                 if status == DownloadStatus::Cancelled {
                     let _ = tokio::fs::remove_dir_all(&temp_dir).await;
                 }
-                if let Ok(Some(d)) =
-                    database::set_status(&pool, &id, status, None).await
-                {
+                if let Ok(Some(d)) = database::set_status(&pool, &id, status, None).await {
                     let _ = progress_tx.send(d);
                 }
             }
             Err(e) => {
-                if let Ok(Some(d)) = database::set_status(
-                    &pool,
-                    &id,
-                    DownloadStatus::Failed,
-                    Some(&e.to_string()),
-                )
-                .await
+                if let Ok(Some(d)) =
+                    database::set_status(&pool, &id, DownloadStatus::Failed, Some(&e.to_string()))
+                        .await
                 {
                     let _ = progress_tx.send(d);
                 }
@@ -1920,7 +1918,7 @@ fn absolute_path(path: PathBuf) -> Result<PathBuf> {
     }
 }
 
-fn validate_download_url(url: &Url) -> Result<()> {
+pub(crate) fn validate_download_url(url: &Url) -> Result<()> {
     match url.scheme() {
         "http" | "https" => {}
         _ => return Err(DownloadError::UnsupportedScheme),
