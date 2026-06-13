@@ -1,6 +1,10 @@
 # OrangeDL
 
 <p align="center">
+  <img src="src/images/OrangeDLBanner.png" alt="OrangeDL Banner" width="100%" />
+</p>
+
+<p align="center">
   <em>A Windows-first desktop download manager focused on HTTP(S) transfers, local history, and a clean Tauri-based workflow.</em>
 </p>
 
