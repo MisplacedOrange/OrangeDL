@@ -160,6 +160,23 @@ struct RunningDownload {
     intent: Arc<AtomicU8>,
 }
 
+/// Removes a download from the running-tasks map and re-arms the executor when
+/// the task finishes — including on a panic-unwind, since `panic = "abort"` is
+/// intentionally off. Without this, a panicking download task would leave a
+/// stale entry that permanently blocks resume and consumes a concurrency slot.
+struct TaskCleanup {
+    tasks: Arc<DashMap<String, RunningDownload>>,
+    id: String,
+    notify: Arc<Notify>,
+}
+
+impl Drop for TaskCleanup {
+    fn drop(&mut self) {
+        self.tasks.remove(&self.id);
+        self.notify.notify_one();
+    }
+}
+
 enum DownloadExit {
     Completed,
     Interrupted,
@@ -809,6 +826,14 @@ impl DownloadManager {
         let app = self.app.clone();
 
         tauri::async_runtime::spawn(async move {
+            // Cleans up the tasks map and re-arms the executor on return *or*
+            // panic, so a panicking task can't strand the entry forever.
+            let _cleanup = TaskCleanup {
+                tasks,
+                id: id.clone(),
+                notify,
+            };
+
             // Determine download type
             let media_format = database::get_media_format(&pool, &id).await.unwrap_or(None);
 
@@ -849,9 +874,6 @@ impl DownloadManager {
             } else {
                 Self::run_download(id.clone(), client, pool, control, progress_tx).await;
             }
-
-            tasks.remove(&id);
-            notify.notify_one();
         });
     }
 
@@ -873,9 +895,58 @@ impl DownloadManager {
             let _ = progress_tx.send(d);
         }
 
-        let pool_for_progress = pool.clone();
-        let id_for_progress = id.clone();
-        let tx_for_progress = progress_tx.clone();
+        // yt-dlp emits progress lines very frequently. Rather than spawning a
+        // task (and two DB round-trips) per line — which floods the channel
+        // with unordered writes — funnel raw progress through an unbounded
+        // channel into a single consumer that coalesces and time-throttles
+        // updates, matching the HTTP path's PROGRESS_INTERVAL_MS cadence and
+        // guaranteeing in-order persistence.
+        let (raw_tx, mut raw_rx) = mpsc::unbounded_channel::<media_extractor::YtDlpProgress>();
+        let consumer = {
+            let pool = pool.clone();
+            let id = id.clone();
+            let tx = progress_tx.clone();
+            tauri::async_runtime::spawn(async move {
+                let mut last_emit = Instant::now()
+                    .checked_sub(Duration::from_millis(PROGRESS_INTERVAL_MS))
+                    .unwrap_or_else(Instant::now);
+                let mut pending: Option<media_extractor::YtDlpProgress> = None;
+
+                let flush = |prog: media_extractor::YtDlpProgress, pool: &SqlitePool| {
+                    let pool = pool.clone();
+                    let id = id.clone();
+                    let tx = tx.clone();
+                    async move {
+                        let _ = database::update_progress(
+                            &pool,
+                            &id,
+                            prog.downloaded_bytes,
+                            prog.total_bytes,
+                            prog.speed_bps,
+                        )
+                        .await;
+                        if let Ok(Some(d)) = database::get_download(&pool, &id).await {
+                            let _ = tx.send(d);
+                        }
+                    }
+                };
+
+                while let Some(prog) = raw_rx.recv().await {
+                    if last_emit.elapsed() >= Duration::from_millis(PROGRESS_INTERVAL_MS) {
+                        flush(prog, &pool).await;
+                        last_emit = Instant::now();
+                        pending = None;
+                    } else {
+                        pending = Some(prog);
+                    }
+                }
+
+                // Persist the final coalesced update once yt-dlp stops emitting.
+                if let Some(prog) = pending {
+                    flush(prog, &pool).await;
+                }
+            })
+        };
 
         let result = media_extractor::run_ytdlp(
             &url,
@@ -884,25 +955,14 @@ impl DownloadManager {
             &ytdlp_path,
             &control.token,
             move |prog| {
-                let pool = pool_for_progress.clone();
-                let id = id_for_progress.clone();
-                let tx = tx_for_progress.clone();
-                tauri::async_runtime::spawn(async move {
-                    let _ = database::update_progress(
-                        &pool,
-                        &id,
-                        prog.downloaded_bytes,
-                        prog.total_bytes,
-                        prog.speed_bps,
-                    )
-                    .await;
-                    if let Ok(Some(d)) = database::get_download(&pool, &id).await {
-                        let _ = tx.send(d);
-                    }
-                });
+                let _ = raw_tx.send(prog);
             },
         )
         .await;
+
+        // run_ytdlp has returned, so the closure (and its raw_tx) is dropped;
+        // wait for the consumer to drain before writing the final size below.
+        let _ = consumer.await;
 
         match result {
             Ok(src_file) => {
@@ -1561,7 +1621,18 @@ fn version_parts(value: &str) -> Vec<u32> {
 }
 
 async fn remove_partial_files(temp_path: &Path) {
-    let _ = tokio::fs::remove_file(temp_path).await;
+    // HTTP downloads store a `.part` file here; video (yt-dlp) downloads store
+    // a working *directory*. `remove_file` silently fails on a directory, so
+    // branch on the type to avoid leaking the per-download temp folder.
+    match tokio::fs::metadata(temp_path).await {
+        Ok(meta) if meta.is_dir() => {
+            let _ = tokio::fs::remove_dir_all(temp_path).await;
+        }
+        Ok(_) => {
+            let _ = tokio::fs::remove_file(temp_path).await;
+        }
+        Err(_) => {}
+    }
 }
 
 fn publish(progress_tx: &mpsc::UnboundedSender<Download>, download: Download) {
