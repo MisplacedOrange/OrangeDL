@@ -73,6 +73,13 @@ export const orangeApi = {
     return invoke<string[]>("cleanup_history");
   },
 
+  moveDownload(id: string, directory: string) {
+    return invoke<Download>("move_download", { id, directory });
+  },
+  renameDownload(id: string, newName: string) {
+    return invoke<Download>("rename_download", { id, newName });
+  },
+
   // File operations
   openFile(id: string) {
     return invoke<void>("open_file", { id });

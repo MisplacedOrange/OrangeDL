@@ -33,6 +33,8 @@ interface DownloadsPageProps {
   onVerifyDownloadChecksum: (id: string, expectedSha256?: string | null) => Promise<ChecksumResult>;
   onOpenFile: (id: string) => void;
   onRevealInExplorer: (id: string) => void;
+  onMoveDownload: (id: string) => void;
+  onRenameDownload: (id: string, newName: string) => Promise<void>;
   onPauseAll: () => void;
   onResumeAll: () => void;
   onRetryFailed: () => void;
@@ -156,6 +158,8 @@ export function DownloadsPage({
   onVerifyDownloadChecksum,
   onOpenFile,
   onRevealInExplorer,
+  onMoveDownload,
+  onRenameDownload,
   onPauseAll,
   onResumeAll,
   onRetryFailed,
@@ -559,6 +563,8 @@ export function DownloadsPage({
                 onVerifyChecksum={onVerifyDownloadChecksum}
                 onOpenFile={onOpenFile}
                 onRevealInExplorer={onRevealInExplorer}
+                onMove={onMoveDownload}
+                onRename={onRenameDownload}
               />
             ))}
             {bottomSpacer > 0 ? <div style={{ height: bottomSpacer }} /> : null}

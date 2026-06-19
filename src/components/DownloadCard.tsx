@@ -16,6 +16,8 @@ interface DownloadCardProps {
   onVerifyChecksum?: (id: string, expectedSha256?: string | null) => Promise<ChecksumResult>;
   onOpenFile?: (id: string) => void;
   onRevealInExplorer?: (id: string) => void;
+  onMove?: (id: string) => void;
+  onRename?: (id: string, newName: string) => Promise<void>;
 }
 
 export const DownloadCard = memo(function DownloadCard({
@@ -28,6 +30,8 @@ export const DownloadCard = memo(function DownloadCard({
   onVerifyChecksum,
   onOpenFile,
   onRevealInExplorer,
+  onMove,
+  onRename,
 }: DownloadCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -39,6 +43,9 @@ export const DownloadCard = memo(function DownloadCard({
   const [checksumResult, setChecksumResult] = useState<ChecksumResult | null>(null);
   const [savingOptions, setSavingOptions] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [showRename, setShowRename] = useState(false);
+  const [renameDraft, setRenameDraft] = useState(download.fileName);
+  const [renaming, setRenaming] = useState(false);
 
   const progress = progressValue(download);
   const canPause = download.status === "downloading" || download.status === "queued";
@@ -83,6 +90,17 @@ export const DownloadCard = memo(function DownloadCard({
       });
     } finally {
       setSavingOptions(false);
+    }
+  }
+
+  async function doRename() {
+    if (!onRename || !renameDraft.trim()) return;
+    setRenaming(true);
+    try {
+      await onRename(download.id, renameDraft.trim());
+      setShowRename(false);
+    } finally {
+      setRenaming(false);
     }
   }
 
@@ -292,6 +310,35 @@ export const DownloadCard = memo(function DownloadCard({
             </div>
           ) : null}
 
+          {isComplete && onRename && showRename ? (
+            <div className="download-quick-edit" onClick={(event) => event.stopPropagation()}>
+              <label>
+                <span>New name</span>
+                <input
+                  value={renameDraft}
+                  onChange={(event) => setRenameDraft(event.target.value)}
+                  placeholder={download.fileName}
+                  aria-label={`New name for ${download.fileName}`}
+                />
+              </label>
+              <button
+                type="button"
+                className="detail-action"
+                onClick={doRename}
+                disabled={renaming || !renameDraft.trim()}
+              >
+                {renaming ? "Renaming" : "Save"}
+              </button>
+              <button
+                type="button"
+                className="detail-action"
+                onClick={() => setShowRename(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : null}
+
           <div className="download-detail-actions">
             {isComplete && onOpenFile && (
               <button
@@ -309,6 +356,24 @@ export const DownloadCard = memo(function DownloadCard({
                 onClick={() => onRevealInExplorer(download.id)}
               >
                 Reveal in folder
+              </button>
+            )}
+            {isComplete && onMove && (
+              <button
+                type="button"
+                className="detail-action"
+                onClick={() => onMove(download.id)}
+              >
+                Move
+              </button>
+            )}
+            {isComplete && onRename && (
+              <button
+                type="button"
+                className="detail-action"
+                onClick={() => { setRenameDraft(download.fileName); setShowRename(true); }}
+              >
+                Rename
               </button>
             )}
             <button type="button" className="detail-action" onClick={copyUrl}>

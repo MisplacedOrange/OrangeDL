@@ -380,6 +380,26 @@ export function useDownloads(pushToast: PushToast) {
     [pushToast],
   );
 
+  const moveDownload = useCallback(
+    async (id: string) => {
+      const directory = await orangeApi.pickDirectory();
+      if (!directory) return;
+      const download = await orangeApi.moveDownload(id, directory);
+      upsertDownload(download);
+      pushToast({ title: "Moved", message: download.fileName, kind: "success" });
+    },
+    [pushToast, upsertDownload],
+  );
+
+  const renameDownload = useCallback(
+    async (id: string, newName: string) => {
+      const download = await orangeApi.renameDownload(id, newName);
+      upsertDownload(download);
+      pushToast({ title: "Renamed", message: download.fileName, kind: "success" });
+    },
+    [pushToast, upsertDownload],
+  );
+
   // --- Settings actions ------------------------------------------------------
 
   const updateSettings = useCallback(
@@ -407,6 +427,8 @@ export function useDownloads(pushToast: PushToast) {
     deleteDownload,
     openFile,
     revealInExplorer,
+    moveDownload,
+    renameDownload,
     pauseAll,
     resumeAll,
     retryFailed,

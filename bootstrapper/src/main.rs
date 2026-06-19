@@ -192,12 +192,22 @@ fn run() -> Result<()> {
     download_with_retries(&client, &asset, &destination, MAX_DOWNLOAD_RETRIES)?;
 
     if options.verify_checksum {
-        if let Some(checksum) = fetch_checksum_for(&client, &asset)? {
-            println!("Verifying checksum...");
-            verify_sha256(&destination, &checksum)?;
-            println!("Checksum verified.");
-        } else {
-            println!("No checksum sidecar found — skipping verification.");
+        match fetch_checksum_for(&client, &asset)? {
+            Some(checksum) => {
+                println!("Verifying checksum...");
+                if let Err(error) = verify_sha256(&destination, &checksum) {
+                    let _ = fs::remove_file(&destination);
+                    return Err(error);
+                }
+                println!("Checksum verified.");
+            }
+            None => {
+                let _ = fs::remove_file(&destination);
+                bail!(
+                    "no checksum sidecar found for {} — refusing to run an unverified download (pass --no-verify to override)",
+                    asset.name
+                );
+            }
         }
     }
 

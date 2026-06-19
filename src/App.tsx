@@ -29,6 +29,8 @@ export default function App() {
     deleteDownload,
     openFile,
     revealInExplorer,
+    moveDownload,
+    renameDownload,
     pauseAll,
     resumeAll,
     retryFailed,
@@ -89,6 +91,14 @@ export default function App() {
   const handleClearCompleted = useCallback(() => void runCommand(clearCompleted), [clearCompleted, runCommand]);
   const handleClearCancelled = useCallback(() => void runCommand(clearCancelled), [clearCancelled, runCommand]);
   const handleClearFailed = useCallback(() => void runCommand(clearFailed), [clearFailed, runCommand]);
+  const handleMoveDownload = useCallback(
+    (id: string) => void runCommand(() => moveDownload(id)),
+    [moveDownload, runCommand],
+  );
+  const handleRenameDownload = useCallback(
+    (id: string, newName: string) => runCommand(() => renameDownload(id, newName)),
+    [renameDownload, runCommand],
+  );
   // --- Settings handlers -----------------------------------------------------
 
   const handleSaveSettings = useCallback(
@@ -180,6 +190,8 @@ export default function App() {
               onVerifyDownloadChecksum={verifyDownloadChecksum}
               onOpenFile={openFile}
               onRevealInExplorer={revealInExplorer}
+              onMoveDownload={handleMoveDownload}
+              onRenameDownload={handleRenameDownload}
               onPauseAll={handlePauseAll}
               onResumeAll={handleResumeAll}
               onRetryFailed={handleRetryFailed}
