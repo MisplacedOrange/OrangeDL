@@ -33,6 +33,7 @@
 - Apply optional per-download speed limits
 - Drag and drop URLs into the downloads page
 - Keep active transfers running when the main window is hidden to the tray
+- Keyboard shortcuts for common actions (pause, resume, cancel)
 
 ## Current Limits
 
