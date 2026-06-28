@@ -8,4 +8,4 @@ All submissions require review. We use GitHub pull requests for this purpose.
 
 ## Pull Request Etiquette
 
-Please write clear commit messages that describe what changed and why. Keep commits focused — one logical change per commit makes review easier and history cleaner.
+Please write clear commit messages that describe what changed and why. 
