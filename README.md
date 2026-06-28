@@ -22,6 +22,7 @@
 ## Current Features
 
 - Add downloads from HTTP or HTTPS URLs
+- Download from YouTube, Bilibili, and other platforms supported by [yt-dlp](https://github.com/yt-dlp/yt-dlp) (automatic detection and one-click install)
 - Run multiple downloads concurrently
 - Use pause, resume, cancel, and retry controls
 - Attempt partial-file resume with HTTP `Range` support when the server allows it
@@ -37,8 +38,8 @@
 
 OrangeDL is still an early Windows-first project. Before treating a public release as broadly ready, the project still needs stronger downloader integration coverage, release workflow hardening, and installer trust decisions.
 
-- HTTP and HTTPS are the supported download protocols
-- Browser extension integration, torrents, video extraction, credential/cookie-authenticated downloads, cloud sync, and scheduling are not supported
+- HTTP and HTTPS are the supported download protocols; video platform downloads require yt-dlp
+- Browser extension integration, torrents, credential/cookie-authenticated downloads, cloud sync, and scheduling are not supported
 - Resume behavior depends on the remote server's HTTP `Range` support and may fall back to restarting or failing the transfer
 - Global speed limiting is still being hardened; use per-download limits when exact caps matter
 - Windows installers should be treated as unsigned unless a release explicitly says otherwise
@@ -88,7 +89,7 @@ Full terms: [docs/terms-and-conditions.md](docs/terms-and-conditions.md)
 This project is currently Windows-first. The maintained desktop build path is Tauri v2 with a Rust backend and a React frontend.
 
 Requirements:
-- Node.js 18 or newer
+- Node.js 20 or newer
 - Rust stable toolchain
 - Tauri v2 system prerequisites for your OS
 - On Windows, Microsoft WebView2 runtime and Visual Studio Build Tools are typically required

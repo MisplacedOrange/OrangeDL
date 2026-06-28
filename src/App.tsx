@@ -99,6 +99,7 @@ export default function App() {
     (id: string, newName: string) => runCommand(() => renameDownload(id, newName)),
     [renameDownload, runCommand],
   );
+
   // --- Settings handlers -----------------------------------------------------
 
   const handleSaveSettings = useCallback(
@@ -109,6 +110,7 @@ export default function App() {
     () => void runCommand(cleanupHistory),
     [cleanupHistory, runCommand],
   );
+  
   // --- Window handlers -------------------------------------------------------
 
   const handleMinimizeWindow = useCallback(

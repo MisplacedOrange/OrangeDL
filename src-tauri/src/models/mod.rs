@@ -87,39 +87,6 @@ pub struct AppSettings {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UpdateSettingsRequest {
-    #[serde(default)]
-    pub default_download_directory: Option<String>,
-    #[serde(default)]
-    pub default_speed_limit_bps: Option<u64>,
-    #[serde(default)]
-    pub global_speed_limit_bps: Option<u64>,
-    #[serde(default)]
-    pub max_concurrent_downloads: Option<u32>,
-    #[serde(default)]
-    pub auto_resume_interrupted_downloads: Option<bool>,
-    #[serde(default)]
-    pub close_to_tray: Option<bool>,
-    #[serde(default)]
-    pub notifications_enabled: Option<bool>,
-    #[serde(default)]
-    pub notification_sound: Option<bool>,
-    #[serde(default)]
-    pub background_update_notifications: Option<bool>,
-    #[serde(default)]
-    pub auto_open_folder_on_completion: Option<bool>,
-    #[serde(default)]
-    pub history_retention_days: Option<u32>,
-    #[serde(default)]
-    pub history_max_rows: Option<u32>,
-    #[serde(default)]
-    pub first_run_completed: Option<bool>,
-    #[serde(default)]
-    pub theme: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct UpdateDownloadOptionsRequest {
     pub id: String,
     #[serde(default)]

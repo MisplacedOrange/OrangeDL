@@ -78,23 +78,6 @@ export interface AppSettings {
   theme: string;
 }
 
-export interface UpdateSettingsRequest {
-  defaultDownloadDirectory?: string | null;
-  defaultSpeedLimitBps?: number | null;
-  globalSpeedLimitBps?: number | null;
-  maxConcurrentDownloads?: number | null;
-  autoResumeInterruptedDownloads?: boolean | null;
-  closeToTray?: boolean | null;
-  notificationsEnabled?: boolean | null;
-  notificationSound?: boolean | null;
-  backgroundUpdateNotifications?: boolean | null;
-  autoOpenFolderOnCompletion?: boolean | null;
-  historyRetentionDays?: number | null;
-  historyMaxRows?: number | null;
-  firstRunCompleted?: boolean | null;
-  theme?: string | null;
-}
-
 // --- Preflight & updates -----------------------------------------------------
 
 export interface PreflightResult {

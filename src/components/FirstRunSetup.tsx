@@ -3,11 +3,11 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { orangeApi } from "../lib/tauri";
-import type { AppSettings, UpdateSettingsRequest } from "../lib/types";
+import type { AppSettings } from "../lib/types";
 
 interface FirstRunSetupProps {
   settings: AppSettings;
-  onSave: (request: UpdateSettingsRequest) => Promise<void>;
+  onSave: (settings: AppSettings) => Promise<void>;
 }
 
 export function FirstRunSetup({ settings, onSave }: FirstRunSetupProps) {
@@ -37,6 +37,7 @@ export function FirstRunSetup({ settings, onSave }: FirstRunSetupProps) {
     setSaving(true);
     try {
       await onSave({
+        ...settings,
         defaultDownloadDirectory: directory.trim(),
         closeToTray,
         firstRunCompleted: true,

@@ -5,7 +5,6 @@ use crate::media_extractor::{self, VideoInfo, YtDlpStatus};
 use crate::models::{
     AppSettings, ChecksumResult, Download, PreflightResult, StartDownloadRequest,
     StartVideoDownloadRequest, UpdateCheckResult, UpdateDownloadOptionsRequest,
-    UpdateSettingsRequest,
 };
 use crate::AppState;
 use tauri::{AppHandle, State};
@@ -79,7 +78,7 @@ pub async fn get_settings(state: State<'_, AppState>) -> Result<AppSettings, Str
 #[tauri::command]
 pub async fn update_settings(
     state: State<'_, AppState>,
-    request: UpdateSettingsRequest,
+    request: AppSettings,
 ) -> Result<AppSettings, String> {
     state
         .manager

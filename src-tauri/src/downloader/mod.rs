@@ -6,7 +6,6 @@ use crate::media_extractor;
 use crate::models::{
     AppSettings, ChecksumResult, Download, DownloadStatus, PreflightResult, StartDownloadRequest,
     StartVideoDownloadRequest, UpdateCheckResult, UpdateDownloadOptionsRequest,
-    UpdateSettingsRequest,
 };
 use dashmap::DashMap;
 use futures_util::StreamExt;
@@ -18,6 +17,7 @@ use reqwest::header::{
 use reqwest::{Client, StatusCode};
 use sha2::{Digest, Sha256};
 use sqlx::SqlitePool;
+use std::net::{IpAddr, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
@@ -27,7 +27,7 @@ use tokio::fs::OpenOptions;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio::sync::{mpsc, Notify};
 use tokio_util::sync::CancellationToken;
-use url::Url;
+use url::{Host, Url};
 use uuid::Uuid;
 
 pub type Result<T> = std::result::Result<T, DownloadError>;
@@ -37,6 +37,7 @@ const MAX_REDIRECTS: usize = 10;
 const MAX_IDLE_CONNECTIONS_PER_HOST: usize = 8;
 const WRITE_BUFFER_SIZE: usize = 1024 * 1024;
 const PROGRESS_INTERVAL_MS: u64 = 750;
+const STALL_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_FILE_NAME_CHARS: usize = 180;
 const INTENT_NONE: u8 = 0;
 const INTENT_PAUSE: u8 = 1;
@@ -65,6 +66,8 @@ pub enum DownloadError {
     MissingHost,
     #[error("URLs with embedded credentials are not supported")]
     CredentialsInUrl,
+    #[error("download target resolves to a private, loopback, or reserved address and is blocked")]
+    BlockedTarget,
     #[error("invalid URL: {0}")]
     InvalidUrl(#[from] url::ParseError),
     #[error("{}", classify_request_error(.0))]
@@ -296,76 +299,50 @@ impl DownloadManager {
         database::get_app_settings(&self.pool, &self.app).await
     }
 
-    pub async fn update_settings(&self, request: UpdateSettingsRequest) -> Result<AppSettings> {
-        if let Some(dir) = request.default_download_directory.as_deref() {
-            let directory =
-                prepare_download_directory(Some(dir), database::system_download_dir(&self.app)?)
-                    .await?;
-            let dir_str = directory.to_string_lossy().to_string();
-            database::set_default_download_directory(&self.pool, &dir_str).await?;
-        }
-
+    pub async fn update_settings(&self, settings: AppSettings) -> Result<AppSettings> {
+        let directory = prepare_download_directory(
+            Some(&settings.default_download_directory),
+            database::system_download_dir(&self.app)?,
+        )
+        .await?;
+        database::set_default_download_directory(&self.pool, &directory.to_string_lossy())
+            .await?;
         database::set_default_speed_limit(
             &self.pool,
-            request.default_speed_limit_bps.filter(|v| *v > 0),
+            settings.default_speed_limit_bps.filter(|v| *v > 0),
         )
         .await?;
-
         database::set_global_speed_limit(
             &self.pool,
-            request.global_speed_limit_bps.filter(|v| *v > 0),
+            settings.global_speed_limit_bps.filter(|v| *v > 0),
         )
         .await?;
-
-        if let Some(max) = request.max_concurrent_downloads {
-            database::set_max_concurrent_downloads(&self.pool, max).await?;
-            self.notify.notify_one();
-        }
-
-        if let Some(auto_resume) = request.auto_resume_interrupted_downloads {
-            database::set_auto_resume_interrupted(&self.pool, auto_resume).await?;
-        }
-
-        if let Some(close_to_tray) = request.close_to_tray {
-            database::set_close_to_tray(&self.pool, close_to_tray).await?;
-        }
-
-        if let Some(enabled) = request.notifications_enabled {
-            database::set_notifications_enabled(&self.pool, enabled).await?;
-        }
-
-        if let Some(sound) = request.notification_sound {
-            database::set_notification_sound(&self.pool, sound).await?;
-        }
-
-        if let Some(enabled) = request.background_update_notifications {
-            database::set_background_update_notifications(&self.pool, enabled).await?;
-        }
-
-        if let Some(enabled) = request.auto_open_folder_on_completion {
-            database::set_auto_open_folder_on_completion(&self.pool, enabled).await?;
-        }
-
-        database::set_history_retention_days(&self.pool, request.history_retention_days).await?;
-        database::set_history_max_rows(&self.pool, request.history_max_rows).await?;
-
-        if let Some(first_run_completed) = request.first_run_completed {
-            database::set_first_run_completed(&self.pool, first_run_completed).await?;
-        }
-
-        if let Some(theme) = request.theme.as_deref() {
-            database::set_theme(&self.pool, &normalize_theme(theme)).await?;
-        }
-
-        let settings = self.app_settings().await?;
-        let _ = database::cleanup_history(
+        database::set_max_concurrent_downloads(&self.pool, settings.max_concurrent_downloads)
+            .await?;
+        self.notify.notify_one();
+        database::set_auto_resume_interrupted(
             &self.pool,
-            settings.history_retention_days,
-            settings.history_max_rows,
+            settings.auto_resume_interrupted_downloads,
         )
         .await?;
-
-        self.app_settings().await
+        database::set_close_to_tray(&self.pool, settings.close_to_tray).await?;
+        database::set_notifications_enabled(&self.pool, settings.notifications_enabled).await?;
+        database::set_notification_sound(&self.pool, settings.notification_sound).await?;
+        database::set_background_update_notifications(
+            &self.pool,
+            settings.background_update_notifications,
+        )
+        .await?;
+        database::set_auto_open_folder_on_completion(
+            &self.pool,
+            settings.auto_open_folder_on_completion,
+        )
+        .await?;
+        database::set_history_retention_days(&self.pool, settings.history_retention_days).await?;
+        database::set_history_max_rows(&self.pool, settings.history_max_rows).await?;
+        database::set_first_run_completed(&self.pool, settings.first_run_completed).await?;
+        database::set_theme(&self.pool, &settings.theme).await?;
+        database::get_app_settings(&self.pool, &self.app).await
     }
 
     pub async fn start_download(&self, request: StartDownloadRequest) -> Result<Download> {
@@ -1285,7 +1262,17 @@ impl DownloadManager {
                     file.flush().await?;
                     return Ok(DownloadExit::Interrupted);
                 }
-                chunk = stream.next() => chunk,
+                result = tokio::time::timeout(STALL_TIMEOUT, stream.next()) => {
+                    match result {
+                        Ok(chunk) => chunk,
+                        Err(_) => {
+                            file.flush().await?;
+                            return Err(DownloadError::Config(
+                                "connection stalled — no data received".into(),
+                            ));
+                        }
+                    }
+                }
             };
 
             let Some(chunk) = chunk else {
@@ -1397,7 +1384,7 @@ impl DownloadManager {
             .unwrap_or(&download.file_name)
             .to_owned();
 
-        let target_dir = PathBuf::from(new_directory.trim());
+        let target_dir = absolute_path(PathBuf::from(new_directory.trim()))?;
         tokio::fs::create_dir_all(&target_dir).await?;
         let new_destination = unique_destination(&target_dir, &file_name).await?;
 
@@ -1583,23 +1570,6 @@ async fn auto_open_folder_on_completion(pool: &SqlitePool, app: &AppHandle) -> b
         .await
         .map(|settings| settings.auto_open_folder_on_completion)
         .unwrap_or(false)
-}
-
-/// Theme identifiers are stored as short kebab-case slugs; anything else
-/// falls back to the default so a bad import cannot wedge the UI.
-fn normalize_theme(value: &str) -> String {
-    let normalized = value.trim().to_ascii_lowercase();
-    let valid = !normalized.is_empty()
-        && normalized.len() <= 32
-        && normalized
-            .chars()
-            .all(|character| character.is_ascii_alphanumeric() || character == '-');
-
-    if valid {
-        normalized
-    } else {
-        database::DEFAULT_THEME.to_owned()
-    }
 }
 
 fn trim_version_prefix(value: &str) -> String {
@@ -1981,11 +1951,17 @@ async fn prepare_download_directory(requested: Option<&str>, fallback: PathBuf) 
     Ok(directory)
 }
 
+/// Rejects relative paths instead of silently resolving them against the
+/// process's current directory, which is unpredictable for a GUI app and
+/// could otherwise place downloads somewhere the user didn't intend.
 fn absolute_path(path: PathBuf) -> Result<PathBuf> {
     if path.is_absolute() {
         Ok(path)
     } else {
-        Ok(std::env::current_dir()?.join(path))
+        Err(DownloadError::Config(format!(
+            "download directory must be an absolute path: {}",
+            path.display()
+        )))
     }
 }
 
@@ -2003,7 +1979,69 @@ pub(crate) fn validate_download_url(url: &Url) -> Result<()> {
         return Err(DownloadError::CredentialsInUrl);
     }
 
+    if target_is_blocked(url) {
+        return Err(DownloadError::BlockedTarget);
+    }
+
     Ok(())
+}
+
+/// Blocks loopback, private, link-local, and other non-routable addresses to
+/// mitigate SSRF (e.g. a URL or redirect pointed at cloud metadata services or
+/// an internal admin endpoint). Domain hosts are resolved synchronously here;
+/// this is a deliberate, bounded blocking call — acceptable given how
+/// infrequently it runs (once per download attempt / redirect hop) and the
+/// app's low concurrency — and resolution failures fail closed (blocked).
+fn target_is_blocked(url: &Url) -> bool {
+    let Some(host) = url.host() else {
+        return true;
+    };
+
+    match host {
+        Host::Ipv4(ip) => is_blocked_ip(IpAddr::V4(ip)),
+        Host::Ipv6(ip) => is_blocked_ip(IpAddr::V6(ip)),
+        Host::Domain(domain) => {
+            let port = url.port_or_known_default().unwrap_or(443);
+            match (domain, port).to_socket_addrs() {
+                Ok(addrs) => {
+                    let mut resolved_any = false;
+                    for addr in addrs {
+                        resolved_any = true;
+                        if is_blocked_ip(addr.ip()) {
+                            return true;
+                        }
+                    }
+                    !resolved_any
+                }
+                Err(_) => true,
+            }
+        }
+    }
+}
+
+fn is_blocked_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => {
+            v4.is_loopback()
+                || v4.is_private()
+                || v4.is_link_local()
+                || v4.is_broadcast()
+                || v4.is_documentation()
+                || v4.is_unspecified()
+                || v4.is_multicast()
+        }
+        IpAddr::V6(v6) => {
+            if let Some(mapped) = v6.to_ipv4_mapped() {
+                return is_blocked_ip(IpAddr::V4(mapped));
+            }
+
+            let octets = v6.octets();
+            let is_unique_local = octets[0] & 0xfe == 0xfc; // fc00::/7
+            let is_link_local = octets[0] == 0xfe && (octets[1] & 0xc0) == 0x80; // fe80::/10
+
+            v6.is_loopback() || v6.is_unspecified() || v6.is_multicast() || is_unique_local || is_link_local
+        }
+    }
 }
 
 fn download_redirect_policy() -> reqwest::redirect::Policy {
@@ -2023,6 +2061,10 @@ fn download_redirect_policy() -> reqwest::redirect::Policy {
             .is_some_and(|url| url.scheme() == "https");
         if started_with_https && next.scheme() != "https" {
             return attempt.error("refusing to downgrade an HTTPS download redirect to HTTP");
+        }
+
+        if target_is_blocked(next) {
+            return attempt.error("download redirected to a private or reserved address");
         }
 
         attempt.follow()
@@ -2164,13 +2206,14 @@ mod tests {
 
     #[test]
     fn validate_accepts_https() {
-        let url = Url::parse("https://example.com/file.zip").unwrap();
+        // Use a literal public IP to avoid DNS resolution in offline test envs.
+        let url = Url::parse("https://1.1.1.1/file.zip").unwrap();
         assert!(validate_download_url(&url).is_ok());
     }
 
     #[test]
     fn validate_accepts_http() {
-        let url = Url::parse("http://example.com/file.zip").unwrap();
+        let url = Url::parse("http://1.1.1.1/file.zip").unwrap();
         assert!(validate_download_url(&url).is_ok());
     }
 
@@ -2300,21 +2343,6 @@ mod tests {
         assert!(d.as_secs() <= 120);
     }
 
-    // --- normalize_theme ---
-
-    #[test]
-    fn normalize_theme_accepts_kebab_slug() {
-        assert_eq!(normalize_theme(" Creamsicle "), "creamsicle");
-        assert_eq!(normalize_theme("peach-fizz"), "peach-fizz");
-    }
-
-    #[test]
-    fn normalize_theme_rejects_invalid_input() {
-        assert_eq!(normalize_theme(""), database::DEFAULT_THEME);
-        assert_eq!(normalize_theme("../evil theme!"), database::DEFAULT_THEME);
-        assert_eq!(normalize_theme(&"x".repeat(60)), database::DEFAULT_THEME);
-    }
-
     // --- download_redirect_policy ---
 
     #[test]
@@ -2327,5 +2355,85 @@ mod tests {
         let started_with_https = true;
         let would_downgrade = started_with_https && http_scheme != https_scheme;
         assert!(would_downgrade, "should detect HTTPS→HTTP downgrade");
+    }
+
+    // --- SSRF blocking (validate_download_url / is_blocked_ip) ---
+
+    #[test]
+    fn validate_rejects_loopback_ipv4() {
+        let url = Url::parse("http://127.0.0.1/file.zip").unwrap();
+        assert!(validate_download_url(&url).is_err());
+    }
+
+    #[test]
+    fn validate_rejects_private_class_a() {
+        let url = Url::parse("http://10.0.0.1/file.zip").unwrap();
+        assert!(validate_download_url(&url).is_err());
+    }
+
+    #[test]
+    fn validate_rejects_private_class_b() {
+        let url = Url::parse("http://172.16.0.1/file.zip").unwrap();
+        assert!(validate_download_url(&url).is_err());
+    }
+
+    #[test]
+    fn validate_rejects_private_class_c() {
+        let url = Url::parse("http://192.168.1.1/file.zip").unwrap();
+        assert!(validate_download_url(&url).is_err());
+    }
+
+    #[test]
+    fn validate_rejects_link_local() {
+        let url = Url::parse("http://169.254.169.254/latest/meta-data").unwrap();
+        assert!(validate_download_url(&url).is_err());
+    }
+
+    #[test]
+    fn validate_rejects_loopback_ipv6() {
+        let url = Url::parse("http://[::1]/file.zip").unwrap();
+        assert!(validate_download_url(&url).is_err());
+    }
+
+    #[test]
+    fn validate_rejects_unique_local_ipv6() {
+        let url = Url::parse("http://[fc00::1]/file.zip").unwrap();
+        assert!(validate_download_url(&url).is_err());
+    }
+
+    #[test]
+    fn validate_rejects_link_local_ipv6() {
+        let url = Url::parse("http://[fe80::1]/file.zip").unwrap();
+        assert!(validate_download_url(&url).is_err());
+    }
+
+    #[test]
+    fn validate_rejects_ipv4_mapped_private_ipv6() {
+        let url = Url::parse("http://[::ffff:192.168.1.1]/file.zip").unwrap();
+        assert!(validate_download_url(&url).is_err());
+    }
+
+    #[test]
+    fn is_blocked_ip_accepts_public_ipv4() {
+        let ip = IpAddr::V4(std::net::Ipv4Addr::new(1, 1, 1, 1));
+        assert!(!is_blocked_ip(ip));
+    }
+
+    #[test]
+    fn is_blocked_ip_blocks_loopback() {
+        let ip = IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1));
+        assert!(is_blocked_ip(ip));
+    }
+
+    #[test]
+    fn is_blocked_ip_blocks_broadcast() {
+        let ip = IpAddr::V4(std::net::Ipv4Addr::new(255, 255, 255, 255));
+        assert!(is_blocked_ip(ip));
+    }
+
+    #[test]
+    fn is_blocked_ip_blocks_documentation() {
+        let ip = IpAddr::V4(std::net::Ipv4Addr::new(192, 0, 2, 1));
+        assert!(is_blocked_ip(ip));
     }
 }

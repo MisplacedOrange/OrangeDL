@@ -19,7 +19,6 @@ import type {
   StartDownloadRequest,
   StartVideoDownloadRequest,
   UpdateDownloadOptionsRequest,
-  UpdateSettingsRequest,
 } from "../lib/types";
 
 type PushToast = (toast: { title: string; message?: string; kind: ToastKind }) => void;
@@ -403,12 +402,12 @@ export function useDownloads(pushToast: PushToast) {
   // --- Settings actions ------------------------------------------------------
 
   const updateSettings = useCallback(
-    async (request: UpdateSettingsRequest) => {
-      const appSettings = await orangeApi.updateSettings(completeSettingsRequest(settings, request));
+    async (request: AppSettings) => {
+      const appSettings = await orangeApi.updateSettings(request);
       setSettings(appSettings);
       pushToast({ title: "Settings saved", kind: "success" });
     },
-    [pushToast, settings],
+    [pushToast],
   );
 
   // --- Return ----------------------------------------------------------------
@@ -443,56 +442,5 @@ export function useDownloads(pushToast: PushToast) {
     openAddModal,
     addModalInitialUrl,
     clearOpenAddModal: () => setOpenAddModal(false),
-  };
-}
-
-// --- Settings merge ----------------------------------------------------------
-
-function completeSettingsRequest(
-  current: AppSettings,
-  request: UpdateSettingsRequest,
-): UpdateSettingsRequest {
-  const has = (key: keyof UpdateSettingsRequest) =>
-    Object.prototype.hasOwnProperty.call(request, key);
-
-  return {
-    defaultDownloadDirectory: has("defaultDownloadDirectory")
-      ? request.defaultDownloadDirectory ?? ""
-      : current.defaultDownloadDirectory,
-    defaultSpeedLimitBps: has("defaultSpeedLimitBps")
-      ? request.defaultSpeedLimitBps ?? null
-      : current.defaultSpeedLimitBps,
-    globalSpeedLimitBps: has("globalSpeedLimitBps")
-      ? request.globalSpeedLimitBps ?? null
-      : current.globalSpeedLimitBps,
-    maxConcurrentDownloads: has("maxConcurrentDownloads")
-      ? request.maxConcurrentDownloads ?? current.maxConcurrentDownloads
-      : current.maxConcurrentDownloads,
-    autoResumeInterruptedDownloads: has("autoResumeInterruptedDownloads")
-      ? Boolean(request.autoResumeInterruptedDownloads)
-      : current.autoResumeInterruptedDownloads,
-    closeToTray: has("closeToTray") ? Boolean(request.closeToTray) : current.closeToTray,
-    notificationsEnabled: has("notificationsEnabled")
-      ? Boolean(request.notificationsEnabled)
-      : current.notificationsEnabled,
-    notificationSound: has("notificationSound")
-      ? Boolean(request.notificationSound)
-      : current.notificationSound,
-    backgroundUpdateNotifications: has("backgroundUpdateNotifications")
-      ? Boolean(request.backgroundUpdateNotifications)
-      : current.backgroundUpdateNotifications,
-    autoOpenFolderOnCompletion: has("autoOpenFolderOnCompletion")
-      ? Boolean(request.autoOpenFolderOnCompletion)
-      : current.autoOpenFolderOnCompletion,
-    historyRetentionDays: has("historyRetentionDays")
-      ? request.historyRetentionDays ?? null
-      : current.historyRetentionDays,
-    historyMaxRows: has("historyMaxRows")
-      ? request.historyMaxRows ?? null
-      : current.historyMaxRows,
-    firstRunCompleted: has("firstRunCompleted")
-      ? Boolean(request.firstRunCompleted)
-      : current.firstRunCompleted,
-    theme: has("theme") ? request.theme ?? current.theme : current.theme,
   };
 }

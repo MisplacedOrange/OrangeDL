@@ -6,11 +6,11 @@ import { clsx } from "clsx";
 import { formatSpeed } from "../lib/format";
 import { orangeApi } from "../lib/tauri";
 import { applyTheme, THEMES } from "../lib/themes";
-import type { AppSettings, UpdateCheckResult, UpdateSettingsRequest } from "../lib/types";
+import type { AppSettings, UpdateCheckResult } from "../lib/types";
 
 interface SettingsPageProps {
   settings: AppSettings;
-  onSave: (request: UpdateSettingsRequest) => Promise<void>;
+  onSave: (settings: AppSettings) => Promise<void>;
   onCleanupHistory: () => void;
 }
 
@@ -104,14 +104,16 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
   async function handleThemeSelect(id: string) {
     setTheme(id);
     applyTheme(id);
-    await onSave({ theme: id });
+    await onSave({ ...settings, theme: id });
   }
 
-  function buildRequest(firstRunCompleted = settings.firstRunCompleted): UpdateSettingsRequest {
+  function buildRequest(firstRunCompleted = settings.firstRunCompleted): AppSettings {
     return {
       defaultDownloadDirectory: directory.trim(),
       defaultSpeedLimitBps: parseMbps(defaultSpeedLimit),
       globalSpeedLimitBps: parseMbps(globalSpeedLimit),
+      maxConcurrentDownloads: settings.maxConcurrentDownloads,
+      autoResumeInterruptedDownloads: settings.autoResumeInterruptedDownloads,
       closeToTray,
       notificationsEnabled,
       notificationSound,
@@ -150,6 +152,8 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
         defaultDownloadDirectory: parsed.defaultDownloadDirectory ?? settings.defaultDownloadDirectory,
         defaultSpeedLimitBps: parsed.defaultSpeedLimitBps ?? null,
         globalSpeedLimitBps: parsed.globalSpeedLimitBps ?? null,
+        maxConcurrentDownloads: parsed.maxConcurrentDownloads ?? settings.maxConcurrentDownloads,
+        autoResumeInterruptedDownloads: parsed.autoResumeInterruptedDownloads ?? settings.autoResumeInterruptedDownloads,
         closeToTray: parsed.closeToTray ?? settings.closeToTray,
         notificationsEnabled: parsed.notificationsEnabled ?? settings.notificationsEnabled,
         notificationSound: parsed.notificationSound ?? settings.notificationSound,
@@ -442,10 +446,10 @@ export function SettingsPage({ settings, onSave, onCleanupHistory }: SettingsPag
             <button type="button" className="secondary-button" onClick={onCleanupHistory}>
               Run cleanup
             </button>
-            <a href="https://github.com/misplacedorange/OrangeDL/blob/main/docs/privacy-policy.md" target="_blank" rel="noreferrer">
+            <a href="https://github.com/misplacedorange/OrangeDL/blob/main/docs/privacy-policy.md" target="_blank" rel="noopener noreferrer">
               Privacy
             </a>
-            <a href="https://github.com/misplacedorange/OrangeDL/blob/main/docs/terms-and-conditions.md" target="_blank" rel="noreferrer">
+            <a href="https://github.com/misplacedorange/OrangeDL/blob/main/docs/terms-and-conditions.md" target="_blank" rel="noopener noreferrer">
               Terms
             </a>
           </div>

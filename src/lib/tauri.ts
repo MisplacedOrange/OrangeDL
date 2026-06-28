@@ -13,7 +13,6 @@ import type {
   StartVideoDownloadRequest,
   UpdateCheckResult,
   UpdateDownloadOptionsRequest,
-  UpdateSettingsRequest,
   VideoInfo,
   YtDlpStatus,
 } from "./types";
@@ -95,7 +94,7 @@ export const orangeApi = {
   getSettings() {
     return invoke<AppSettings>("get_settings");
   },
-  updateSettings(request: UpdateSettingsRequest) {
+  updateSettings(request: AppSettings) {
     return invoke<AppSettings>("update_settings", { request });
   },
 
