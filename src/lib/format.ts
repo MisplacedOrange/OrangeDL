@@ -16,7 +16,7 @@ export function formatBytes(value?: number | null): string {
 }
 
 export function formatSpeed(value?: number | null): string {
-  if (!value || value <= 1) {
+  if (!value || value <= 0) {
     return "0 B/s";
   }
 
