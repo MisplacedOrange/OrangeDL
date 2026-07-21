@@ -14,33 +14,33 @@ export const DEFAULT_THEME = "creamsicle";
 export const THEMES: ThemeDefinition[] = [
   {
     id: "creamsicle",
-    label: "Creamsicle",
-    description: "Pastel orange on warm cream — the OrangeDL classic.",
-    swatch: ["#ffedd9", "#fff8ef", "#ff9442"],
+    label: "Graphite",
+    description: "Balanced charcoal with a restrained orange signal.",
+    swatch: ["#16181c", "#20242a", "#e47b3a"],
   },
   {
     id: "midnight",
-    label: "Midnight Marmalade",
-    description: "Dark cocoa with a bright orange glow.",
-    swatch: ["#0f0d0a", "#1d160f", "#f97316"],
+    label: "Midnight",
+    description: "Deeper contrast for focused late-night sessions.",
+    swatch: ["#0e1116", "#181d24", "#d8783f"],
   },
   {
     id: "peach",
-    label: "Peach Fizz",
-    description: "Soft coral and peach, sweet and fizzy.",
-    swatch: ["#ffe7df", "#fff6f2", "#ff7e5f"],
+    label: "Paper",
+    description: "Warm, low-glare light surfaces with crisp type.",
+    swatch: ["#ece8e4", "#f7f5f2", "#c9663f"],
   },
   {
     id: "mint",
-    label: "Mint Squeeze",
-    description: "Cool pastel mint with an orange twist.",
-    swatch: ["#e2f6ec", "#f4fcf8", "#ff9442"],
+    label: "Forest",
+    description: "Cool green-black surfaces for softer contrast.",
+    swatch: ["#111a18", "#1c2926", "#cf7848"],
   },
   {
     id: "bubblegum",
-    label: "Bubblegum",
-    description: "Playful pastel pink, extra cheerful.",
-    swatch: ["#fde4f2", "#fff4fa", "#f25cb1"],
+    label: "Ember",
+    description: "Muted plum charcoal with a dusty coral accent.",
+    swatch: ["#1c181c", "#2a242a", "#c57675"],
   },
 ];
 
