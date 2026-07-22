@@ -215,3 +215,116 @@
 .text-warn {
   color: var(--color-warn-text);
 }
+
+/* Modern desktop shell */
+
+.client-window {
+  border: 0;
+  background: var(--color-window-background);
+}
+
+.client-tabs {
+  min-height: 58px;
+  gap: 4px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-app-background) 84%, transparent);
+  padding: 8px 12px;
+}
+
+.client-brand {
+  display: flex;
+  min-width: 178px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 0 2px;
+}
+
+.client-brand-mark {
+  display: grid;
+  height: 32px;
+  width: 32px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--color-brand-primary);
+  color: var(--color-brand-ink);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.client-brand-copy {
+  display: grid;
+  line-height: 1.05;
+}
+
+.client-brand-copy strong {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.client-brand-copy small {
+  margin-top: 4px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.nav-divider {
+  height: 26px;
+  width: 1px;
+  margin: 0 7px 0 2px;
+  background: var(--color-border-subtle);
+}
+
+.client-tabs button {
+  height: 34px;
+  border: 0;
+  border-radius: var(--radius-control);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  padding: 0 13px;
+}
+
+.client-tabs button:hover {
+  border-color: transparent;
+  background: var(--color-surface-raised);
+}
+
+.client-tabs button.active {
+  border-color: transparent;
+  background: var(--color-surface-raised);
+  box-shadow: inset 0 -2px 0 var(--color-brand-primary);
+  color: var(--color-text-primary);
+}
+
+.window-controls {
+  margin-left: 4px;
+}
+
+.window-control {
+  width: 38px;
+  border-radius: 5px;
+}
+
+.primary-button,
+.secondary-button {
+  height: 36px;
+  border: 1px solid var(--color-border-strong);
+  font-weight: 650;
+  box-shadow: none;
+}
+
+.primary-button:hover,
+.secondary-button:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+.primary-button {
+  border-color: transparent;
+}

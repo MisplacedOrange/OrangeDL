@@ -21,6 +21,7 @@ export default function App() {
     loading,
     loadError,
     settings,
+    refresh,
     startDownloads,
     startVideoDownload,
     pauseDownload,
@@ -130,6 +131,14 @@ export default function App() {
     <div className="app-shell min-h-screen overflow-hidden bg-client">
       <div className="client-window">
         <nav className="client-tabs" aria-label="Primary navigation">
+          <div className="client-brand" aria-label="OrangeDL">
+            <span className="client-brand-mark" aria-hidden="true">O</span>
+            <span className="client-brand-copy">
+              <strong>OrangeDL</strong>
+              <small>transfer console</small>
+            </span>
+          </div>
+          <span className="nav-divider" aria-hidden="true" />
           <button
             type="button"
             onClick={() => setActivePage("downloads")}
@@ -182,6 +191,7 @@ export default function App() {
               loading={loading}
               loadError={loadError}
               settings={settings}
+              onRefresh={refresh}
               onStartDownloads={startDownloads}
               onStartVideoDownload={startVideoDownload}
               onPauseDownload={handlePauseDownload}
