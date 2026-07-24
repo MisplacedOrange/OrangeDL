@@ -23,6 +23,7 @@ interface DownloadsPageProps {
   loading: boolean;
   loadError: string;
   settings: AppSettings;
+  onRefresh: () => Promise<void>;
   onStartDownloads: (requests: StartDownloadRequest[]) => Promise<void>;
   onStartVideoDownload: (request: StartVideoDownloadRequest) => Promise<void>;
   onPauseDownload: (id: string) => void;
@@ -57,10 +58,6 @@ const filters: Array<{ id: FilterId; label: string }> = [
   { id: "active", label: "Active" },
   { id: "history", label: "History" },
 ];
-
-const VIRTUALIZE_AFTER = 300;
-const VIRTUAL_ROW_HEIGHT = 76;
-const VIRTUAL_OVERSCAN = 8;
 
 function extractUrls(text: string): string[] {
   return Array.from(new Set(text.match(/https?:\/\/[^\s"'<>]+/gi) ?? []));
@@ -109,8 +106,10 @@ function exportFile(fileName: string, mimeType: string, body: string) {
   const link = document.createElement("a");
   link.href = href;
   link.download = fileName;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(href);
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(href), 0);
 }
 
 function parseImportDefinitions(text: string): StartDownloadRequest[] {
@@ -148,6 +147,7 @@ export function DownloadsPage({
   loading,
   loadError,
   settings,
+  onRefresh,
   onStartDownloads,
   onStartVideoDownload,
   onPauseDownload,
@@ -184,11 +184,8 @@ export function DownloadsPage({
   const [dragActive, setDragActive] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [online, setOnline] = useState(() => navigator.onLine);
-  const [scrollTop, setScrollTop] = useState(0);
-  const [viewportHeight, setViewportHeight] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
-  const tableRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // --- Derived state ---------------------------------------------------------
@@ -224,25 +221,6 @@ export function DownloadsPage({
     return { all: downloads.length, active, history: downloads.length - active };
   }, [downloads]);
 
-  const useVirtualList = visibleDownloads.length > VIRTUALIZE_AFTER;
-  const virtualRange = useMemo(() => {
-    if (!useVirtualList) return { start: 0, end: visibleDownloads.length };
-    const start = Math.max(0, Math.floor(scrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_OVERSCAN);
-    const visibleCount = Math.ceil((viewportHeight || 600) / VIRTUAL_ROW_HEIGHT);
-    const end = Math.min(visibleDownloads.length, start + visibleCount + VIRTUAL_OVERSCAN * 2);
-    return { start, end };
-  }, [scrollTop, useVirtualList, viewportHeight, visibleDownloads.length]);
-
-  const renderedDownloads = useMemo(
-    () => visibleDownloads.slice(virtualRange.start, virtualRange.end),
-    [visibleDownloads, virtualRange],
-  );
-
-  const topSpacer = useVirtualList ? virtualRange.start * VIRTUAL_ROW_HEIGHT : 0;
-  const bottomSpacer = useVirtualList
-    ? Math.max(0, (visibleDownloads.length - virtualRange.end) * VIRTUAL_ROW_HEIGHT)
-    : 0;
-
   // --- Effects ---------------------------------------------------------------
 
   useEffect(() => {
@@ -258,15 +236,6 @@ export function DownloadsPage({
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, []);
-
-  useEffect(() => {
-    const node = tableRef.current;
-    if (!node) return;
-    setViewportHeight(node.clientHeight);
-    const observer = new ResizeObserver(() => setViewportHeight(node.clientHeight));
-    observer.observe(node);
-    return () => observer.disconnect();
   }, []);
 
   // Close the More menu on outside click or Escape
@@ -382,6 +351,17 @@ export function DownloadsPage({
       onDragLeave={() => setDragActive(false)}
       onDrop={handleDrop}
     >
+      <header className="downloads-heading">
+        <div>
+          <p className="page-eyebrow">Transfer workspace</p>
+          <h1>Downloads</h1>
+        </div>
+        <div className="queue-snapshot" aria-label="Queue summary">
+          <span><strong className="tabular">{summary.active}</strong> active</span>
+          <span><strong className="tabular">{summary.completed}</strong> complete</span>
+          <span><strong className="tabular">{summary.failed}</strong> failed</span>
+        </div>
+      </header>
       <div className="download-toolbar">
         <div className="filter-chip" aria-label="Download filters">
           {filters.map((item) => (
@@ -515,24 +495,19 @@ export function DownloadsPage({
         />
       </div>
 
-      {!online || loadError || useVirtualList ? (
+      {!online || loadError ? (
         <div className="download-state-strip" role="status">
-          {!online ? <span>Offline</span> : null}
-          {loadError ? <span>Load error: {loadError}</span> : null}
-          {useVirtualList ? (
-            <span>
-              Large history mode: showing {virtualRange.end - virtualRange.start} of{" "}
-              {visibleDownloads.length}
+          {!online ? <span>Network unavailable. Active transfers will resume when the connection returns.</span> : null}
+          {loadError ? (
+            <span className="load-error-state">
+              Could not load downloads. {loadError}
+              <button type="button" onClick={() => void onRefresh()}>Retry</button>
             </span>
           ) : null}
         </div>
       ) : null}
 
-      <div
-        ref={tableRef}
-        className="download-table min-h-0 flex-1 overflow-auto"
-        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-      >
+      <div className="download-table min-h-0 flex-1 overflow-auto">
         <div className="download-table-header">
           <span>Name</span>
           <span>Size</span>
@@ -549,9 +524,8 @@ export function DownloadsPage({
             ))}
           </div>
         ) : visibleDownloads.length > 0 ? (
-          <div className={clsx("download-table-body", useVirtualList && "is-virtual")}>
-            {topSpacer > 0 ? <div style={{ height: topSpacer }} /> : null}
-            {renderedDownloads.map((download) => (
+          <div className="download-table-body">
+            {visibleDownloads.map((download) => (
               <DownloadCard
                 key={download.id}
                 download={download}
@@ -567,14 +541,19 @@ export function DownloadsPage({
                 onRename={onRenameDownload}
               />
             ))}
-            {bottomSpacer > 0 ? <div style={{ height: bottomSpacer }} /> : null}
           </div>
         ) : (
           <button type="button" onClick={() => setModalOpen(true)} className="empty-download-state">
             <div>
               <span className="empty-state-icon">+</span>
-              <p className="empty-state-title">No downloads match this view</p>
-              <p className="empty-state-sub">Paste or drop an HTTP/HTTPS URL to start.</p>
+              <p className="empty-state-title">
+                {downloads.length === 0 ? "Your queue is ready" : "No downloads match this view"}
+              </p>
+              <p className="empty-state-sub">
+                {downloads.length === 0
+                  ? "Add a direct link, paste a media URL, or drop a text file here."
+                  : "Try another filter or clear the search."}
+              </p>
             </div>
           </button>
         )}
