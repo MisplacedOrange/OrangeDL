@@ -287,3 +287,57 @@ textarea.field-input {
     box-shadow: none;
   }
 }
+
+/* Calm, desktop-native feedback surfaces */
+
+.modal-backdrop {
+  backdrop-filter: blur(5px);
+}
+
+.modal-panel {
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+  padding: 22px;
+}
+
+.modal-eyebrow,
+.field-label {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.085em;
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 680;
+  letter-spacing: -0.025em;
+}
+
+.field-input {
+  border: 1px solid var(--color-border-strong);
+}
+
+.button-cta,
+.button-ghost {
+  border: 1px solid var(--color-border-strong);
+  box-shadow: none;
+  font-weight: 620;
+}
+
+.button-cta {
+  border-color: transparent;
+}
+
+.button-cta:hover:not(:disabled),
+.button-ghost:hover {
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+
+.toast {
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-pop);
+}
