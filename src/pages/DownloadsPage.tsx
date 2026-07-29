@@ -51,12 +51,13 @@ interface DownloadsPageProps {
 
 // --- Constants & utilities ---------------------------------------------------
 
-type FilterId = "all" | "active" | "history";
+type FilterId = "all" | "active" | "completed" | "failed";
 
 const filters: Array<{ id: FilterId; label: string }> = [
   { id: "all", label: "All" },
   { id: "active", label: "Active" },
-  { id: "history", label: "History" },
+  { id: "completed", label: "Completed" },
+  { id: "failed", label: "Failed" },
 ];
 
 function extractUrls(text: string): string[] {
@@ -208,17 +209,21 @@ export function DownloadsPage({
       const matchesFilter =
         filter === "all" ||
         (filter === "active" && ["queued", "downloading", "paused"].includes(download.status)) ||
-        (filter === "history" && ["completed", "failed", "cancelled"].includes(download.status));
+        download.status === filter;
       return matchesSearch && matchesFilter;
     });
   }, [downloads, filter, deferredSearch]);
 
   const filterCounts = useMemo(() => {
     let active = 0;
+    let completed = 0;
+    let failed = 0;
     for (const download of downloads) {
       if (["queued", "downloading", "paused"].includes(download.status)) active += 1;
+      if (download.status === "completed") completed += 1;
+      if (download.status === "failed") failed += 1;
     }
-    return { all: downloads.length, active, history: downloads.length - active };
+    return { all: downloads.length, active, completed, failed };
   }, [downloads]);
 
   // --- Effects ---------------------------------------------------------------
