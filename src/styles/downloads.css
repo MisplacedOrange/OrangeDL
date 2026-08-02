@@ -115,6 +115,23 @@
   box-shadow: none;
 }
 
+.download-sort select {
+  height: 38px;
+  border: var(--border-card) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-window-background);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  outline: 0;
+  padding: 0 30px 0 10px;
+}
+
+.download-sort select:focus-visible {
+  border-color: var(--color-focus-ring);
+  box-shadow: 0 0 0 4px var(--color-focus-shadow);
+}
+
 /* Add download button */
 
 .add-download-button {
@@ -805,6 +822,12 @@
   border: 1px solid var(--color-border-subtle);
   background: var(--color-app-background);
   font-size: 13px;
+}
+
+.download-sort select {
+  height: 34px;
+  border: 1px solid var(--color-border-subtle);
+  font-weight: 500;
 }
 
 .add-download-button {

@@ -52,6 +52,7 @@ interface DownloadsPageProps {
 // --- Constants & utilities ---------------------------------------------------
 
 type FilterId = "all" | "active" | "completed" | "failed";
+type SortId = "newest" | "oldest" | "name" | "size" | "progress";
 
 const filters: Array<{ id: FilterId; label: string }> = [
   { id: "all", label: "All" },
@@ -59,6 +60,19 @@ const filters: Array<{ id: FilterId; label: string }> = [
   { id: "completed", label: "Completed" },
   { id: "failed", label: "Failed" },
 ];
+
+const sortOptions: Array<{ id: SortId; label: string }> = [
+  { id: "newest", label: "Newest first" },
+  { id: "oldest", label: "Oldest first" },
+  { id: "name", label: "Name A–Z" },
+  { id: "size", label: "Largest first" },
+  { id: "progress", label: "Progress" },
+];
+
+function storedSort(): SortId {
+  const value = window.localStorage.getItem("orangedl.downloadSort");
+  return sortOptions.some((option) => option.id === value) ? value as SortId : "newest";
+}
 
 function extractUrls(text: string): string[] {
   return Array.from(new Set(text.match(/https?:\/\/[^\s"'<>]+/gi) ?? []));
@@ -182,6 +196,7 @@ export function DownloadsPage({
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [filter, setFilter] = useState<FilterId>("all");
+  const [sort, setSort] = useState<SortId>(storedSort);
   const [dragActive, setDragActive] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -201,7 +216,7 @@ export function DownloadsPage({
 
   const visibleDownloads = useMemo(() => {
     const needle = deferredSearch.trim().toLowerCase();
-    return downloads.filter((download) => {
+    const matches = downloads.filter((download) => {
       const matchesSearch =
         !needle ||
         download.fileName.toLowerCase().includes(needle) ||
@@ -212,7 +227,14 @@ export function DownloadsPage({
         download.status === filter;
       return matchesSearch && matchesFilter;
     });
-  }, [downloads, filter, deferredSearch]);
+    return [...matches].sort((a, b) => {
+      if (sort === "oldest") return Date.parse(a.createdAt) - Date.parse(b.createdAt);
+      if (sort === "name") return a.fileName.localeCompare(b.fileName, undefined, { sensitivity: "base" });
+      if (sort === "size") return (b.totalBytes ?? -1) - (a.totalBytes ?? -1);
+      if (sort === "progress") return b.progress - a.progress;
+      return Date.parse(b.createdAt) - Date.parse(a.createdAt);
+    });
+  }, [downloads, filter, deferredSearch, sort]);
 
   const filterCounts = useMemo(() => {
     let active = 0;
@@ -227,6 +249,10 @@ export function DownloadsPage({
   }, [downloads]);
 
   // --- Effects ---------------------------------------------------------------
+
+  useEffect(() => {
+    window.localStorage.setItem("orangedl.downloadSort", sort);
+  }, [sort]);
 
   useEffect(() => {
     function handleOnline() {
@@ -397,6 +423,19 @@ export function DownloadsPage({
             aria-label="Search downloads"
             aria-keyshortcuts="Control+f"
           />
+        </label>
+
+        <label className="download-sort">
+          <span className="sr-only">Sort downloads</span>
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as SortId)}
+            aria-label="Sort downloads"
+          >
+            {sortOptions.map((option) => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
+          </select>
         </label>
 
         <div className="toolbar-cluster">
