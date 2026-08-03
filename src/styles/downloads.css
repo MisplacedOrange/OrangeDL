@@ -907,6 +907,11 @@
   font-weight: 500;
 }
 
+.download-source-filter select {
+  max-width: 180px;
+  text-overflow: ellipsis;
+}
+
 .add-download-button {
   height: 34px;
   border: 0;

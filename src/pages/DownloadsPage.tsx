@@ -87,6 +87,14 @@ function storedPinnedIds(): Set<string> {
   }
 }
 
+function sourceName(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "").toLowerCase() || "Unknown source";
+  } catch {
+    return "Unknown source";
+  }
+}
+
 function extractUrls(text: string): string[] {
   return Array.from(new Set(text.match(/https?:\/\/[^\s"'<>]+/gi) ?? []));
 }
@@ -210,6 +218,7 @@ export function DownloadsPage({
   const deferredSearch = useDeferredValue(search);
   const [filter, setFilter] = useState<FilterId>("all");
   const [sort, setSort] = useState<SortId>(storedSort);
+  const [source, setSource] = useState("all");
   const [compact, setCompact] = useState(storedCompactMode);
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(storedPinnedIds);
   const [dragActive, setDragActive] = useState(false);
@@ -250,6 +259,21 @@ export function DownloadsPage({
     };
   }, [downloads]);
 
+  const sourceOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const download of downloads) {
+      const name = sourceName(download.url);
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return [...counts]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  }, [downloads]);
+  const activeSource =
+    source === "all" || sourceOptions.some((option) => option.name === source)
+      ? source
+      : "all";
+
   const visibleDownloads = useMemo(() => {
     const needle = deferredSearch.trim().toLowerCase();
     const matches = downloads.filter((download) => {
@@ -261,7 +285,8 @@ export function DownloadsPage({
         filter === "all" ||
         (filter === "active" && ["queued", "downloading", "paused"].includes(download.status)) ||
         download.status === filter;
-      return matchesSearch && matchesFilter;
+      const matchesSource = activeSource === "all" || sourceName(download.url) === activeSource;
+      return matchesSearch && matchesFilter && matchesSource;
     });
     return [...matches].sort((a, b) => {
       const pinnedOrder = Number(pinnedIds.has(b.id)) - Number(pinnedIds.has(a.id));
@@ -272,7 +297,7 @@ export function DownloadsPage({
       if (sort === "progress") return b.progress - a.progress;
       return Date.parse(b.createdAt) - Date.parse(a.createdAt);
     });
-  }, [downloads, filter, deferredSearch, pinnedIds, sort]);
+  }, [activeSource, downloads, filter, deferredSearch, pinnedIds, sort]);
 
   const filterCounts = useMemo(() => {
     let active = 0;
@@ -492,6 +517,24 @@ export function DownloadsPage({
             ))}
           </select>
         </label>
+
+        {sourceOptions.length > 1 ? (
+          <label className="download-sort download-source-filter">
+            <span className="sr-only">Filter downloads by source</span>
+            <select
+              value={activeSource}
+              onChange={(event) => setSource(event.target.value)}
+              aria-label="Filter downloads by source"
+            >
+              <option value="all">All sources ({downloads.length})</option>
+              {sourceOptions.map((option) => (
+                <option key={option.name} value={option.name}>
+                  {option.name} ({option.count})
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
 
         <div className="toolbar-cluster">
           {hasActive && (
