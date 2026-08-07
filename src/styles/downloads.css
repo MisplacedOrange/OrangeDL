@@ -304,6 +304,28 @@
   gap: 8px;
 }
 
+.download-table.is-compact .download-table-body {
+  gap: 2px;
+}
+
+.download-table.is-compact .download-row-summary {
+  min-height: 44px;
+  padding-block: 5px;
+}
+
+.download-table.is-compact .file-kind {
+  height: 24px;
+  width: 24px;
+}
+
+.download-table.is-compact .file-kind::after {
+  inset: 6px;
+}
+
+.download-table.is-compact .download-status-copy {
+  margin-top: 4px;
+}
+
 /* Row chrome & states */
 
 .download-row {

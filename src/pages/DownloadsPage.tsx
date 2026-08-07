@@ -74,6 +74,10 @@ function storedSort(): SortId {
   return sortOptions.some((option) => option.id === value) ? value as SortId : "newest";
 }
 
+function storedCompactMode(): boolean {
+  return window.localStorage.getItem("orangedl.compactDownloads") === "true";
+}
+
 function extractUrls(text: string): string[] {
   return Array.from(new Set(text.match(/https?:\/\/[^\s"'<>]+/gi) ?? []));
 }
@@ -197,6 +201,7 @@ export function DownloadsPage({
   const deferredSearch = useDeferredValue(search);
   const [filter, setFilter] = useState<FilterId>("all");
   const [sort, setSort] = useState<SortId>(storedSort);
+  const [compact, setCompact] = useState(storedCompactMode);
   const [dragActive, setDragActive] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -253,6 +258,10 @@ export function DownloadsPage({
   useEffect(() => {
     window.localStorage.setItem("orangedl.downloadSort", sort);
   }, [sort]);
+
+  useEffect(() => {
+    window.localStorage.setItem("orangedl.compactDownloads", String(compact));
+  }, [compact]);
 
   useEffect(() => {
     function handleOnline() {
@@ -492,6 +501,14 @@ export function DownloadsPage({
                 >
                   Export CSV
                 </button>
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={compact}
+                  onClick={() => setCompact((value) => !value)}
+                >
+                  {compact ? "Use comfortable rows" : "Use compact rows"}
+                </button>
                 <div className="more-menu-separator" role="separator" />
                 {hasCompleted && (
                   <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onClearCompleted(); }}>
@@ -551,7 +568,7 @@ export function DownloadsPage({
         </div>
       ) : null}
 
-      <div className="download-table min-h-0 flex-1 overflow-auto">
+      <div className={clsx("download-table min-h-0 flex-1 overflow-auto", compact && "is-compact")}>
         <div className="download-table-header">
           <span>Name</span>
           <span>Size</span>
