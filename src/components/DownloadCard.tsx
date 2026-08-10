@@ -8,6 +8,8 @@ import { formatBytes, formatEta, formatSpeed, progressValue, statusLabel } from 
 
 interface DownloadCardProps {
   download: Download;
+  pinned?: boolean;
+  onTogglePinned?: (id: string) => void;
   onPause: (id: string) => void;
   onResume: (id: string) => void;
   onCancel: (id: string) => void;
@@ -22,6 +24,8 @@ interface DownloadCardProps {
 
 export const DownloadCard = memo(function DownloadCard({
   download,
+  pinned = false,
+  onTogglePinned,
   onPause,
   onResume,
   onCancel,
@@ -124,6 +128,7 @@ export const DownloadCard = memo(function DownloadCard({
       className={clsx(
         "download-row",
         isRunning && "is-active",
+        pinned && "is-pinned",
         expanded && "is-expanded",
       )}
     >
@@ -150,6 +155,21 @@ export const DownloadCard = memo(function DownloadCard({
           <div className="download-name-text">
             <div className="download-title-line">
               <h3 className="download-title truncate">{download.fileName}</h3>
+              {onTogglePinned ? (
+                <button
+                  type="button"
+                  className={clsx("pin-download-button", pinned && "is-pinned")}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onTogglePinned(download.id);
+                  }}
+                  aria-label={`${pinned ? "Unpin" : "Pin"} ${download.fileName}`}
+                  aria-pressed={pinned}
+                  title={pinned ? "Unpin download" : "Pin download"}
+                >
+                  <span aria-hidden="true">★</span>
+                </button>
+              ) : null}
             </div>
             {!expanded && download.error ? (
               <p className="download-error">{download.error}</p>

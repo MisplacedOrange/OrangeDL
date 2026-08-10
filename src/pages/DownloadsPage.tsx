@@ -78,6 +78,15 @@ function storedCompactMode(): boolean {
   return window.localStorage.getItem("orangedl.compactDownloads") === "true";
 }
 
+function storedPinnedIds(): Set<string> {
+  try {
+    const value = JSON.parse(window.localStorage.getItem("orangedl.pinnedDownloads") ?? "[]");
+    return new Set(Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
 function extractUrls(text: string): string[] {
   return Array.from(new Set(text.match(/https?:\/\/[^\s"'<>]+/gi) ?? []));
 }
@@ -202,6 +211,7 @@ export function DownloadsPage({
   const [filter, setFilter] = useState<FilterId>("all");
   const [sort, setSort] = useState<SortId>(storedSort);
   const [compact, setCompact] = useState(storedCompactMode);
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(storedPinnedIds);
   const [dragActive, setDragActive] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [online, setOnline] = useState(() => navigator.onLine);
@@ -233,13 +243,15 @@ export function DownloadsPage({
       return matchesSearch && matchesFilter;
     });
     return [...matches].sort((a, b) => {
+      const pinnedOrder = Number(pinnedIds.has(b.id)) - Number(pinnedIds.has(a.id));
+      if (pinnedOrder !== 0) return pinnedOrder;
       if (sort === "oldest") return Date.parse(a.createdAt) - Date.parse(b.createdAt);
       if (sort === "name") return a.fileName.localeCompare(b.fileName, undefined, { sensitivity: "base" });
       if (sort === "size") return (b.totalBytes ?? -1) - (a.totalBytes ?? -1);
       if (sort === "progress") return b.progress - a.progress;
       return Date.parse(b.createdAt) - Date.parse(a.createdAt);
     });
-  }, [downloads, filter, deferredSearch, sort]);
+  }, [downloads, filter, deferredSearch, pinnedIds, sort]);
 
   const filterCounts = useMemo(() => {
     let active = 0;
@@ -262,6 +274,10 @@ export function DownloadsPage({
   useEffect(() => {
     window.localStorage.setItem("orangedl.compactDownloads", String(compact));
   }, [compact]);
+
+  useEffect(() => {
+    window.localStorage.setItem("orangedl.pinnedDownloads", JSON.stringify([...pinnedIds]));
+  }, [pinnedIds]);
 
   useEffect(() => {
     function handleOnline() {
@@ -339,6 +355,15 @@ export function DownloadsPage({
   function openWithUrl(url: string) {
     setDraftUrl(url);
     setModalOpen(true);
+  }
+
+  function togglePinned(id: string) {
+    setPinnedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   async function handleDrop(event: React.DragEvent<HTMLDivElement>) {
@@ -590,6 +615,8 @@ export function DownloadsPage({
               <DownloadCard
                 key={download.id}
                 download={download}
+                pinned={pinnedIds.has(download.id)}
+                onTogglePinned={togglePinned}
                 onPause={onPauseDownload}
                 onResume={onResumeDownload}
                 onCancel={onCancelDownload}
