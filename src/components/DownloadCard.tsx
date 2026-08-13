@@ -10,6 +10,7 @@ interface DownloadCardProps {
   download: Download;
   pinned?: boolean;
   onTogglePinned?: (id: string) => void;
+  onDownloadAgain?: (url: string) => void;
   onPause: (id: string) => void;
   onResume: (id: string) => void;
   onCancel: (id: string) => void;
@@ -26,6 +27,7 @@ export const DownloadCard = memo(function DownloadCard({
   download,
   pinned = false,
   onTogglePinned,
+  onDownloadAgain,
   onPause,
   onResume,
   onCancel,
@@ -56,6 +58,7 @@ export const DownloadCard = memo(function DownloadCard({
   const canResume = download.status === "paused" || download.status === "failed";
   const canCancel = !["completed", "cancelled", "failed"].includes(download.status);
   const canDelete = ["completed", "cancelled", "failed"].includes(download.status);
+  const canDownloadAgain = ["completed", "cancelled", "failed"].includes(download.status);
   const isRunning = download.status === "downloading";
   const isComplete = download.status === "completed";
 
@@ -360,6 +363,15 @@ export const DownloadCard = memo(function DownloadCard({
           ) : null}
 
           <div className="download-detail-actions">
+            {canDownloadAgain && onDownloadAgain ? (
+              <button
+                type="button"
+                className="detail-action"
+                onClick={() => onDownloadAgain(download.url)}
+              >
+                Download again
+              </button>
+            ) : null}
             {isComplete && onOpenFile && (
               <button
                 type="button"

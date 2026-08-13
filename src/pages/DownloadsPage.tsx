@@ -617,6 +617,7 @@ export function DownloadsPage({
                 download={download}
                 pinned={pinnedIds.has(download.id)}
                 onTogglePinned={togglePinned}
+                onDownloadAgain={openWithUrl}
                 onPause={onPauseDownload}
                 onResume={onResumeDownload}
                 onCancel={onCancelDownload}
