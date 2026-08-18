@@ -876,6 +876,31 @@
   font-size: 13px;
 }
 
+.queue-progress-summary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.queue-progress-track {
+  position: relative;
+  height: 5px;
+  width: 84px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-surface-progress-track);
+}
+
+.queue-progress-track > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--color-brand-primary);
+}
+
 .download-sort select {
   height: 34px;
   border: 1px solid var(--color-border-subtle);

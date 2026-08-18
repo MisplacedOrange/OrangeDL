@@ -15,7 +15,7 @@ import type {
   StartVideoDownloadRequest,
   UpdateDownloadOptionsRequest,
 } from "../lib/types";
-import { formatSpeed } from "../lib/format";
+import { formatBytes, formatSpeed } from "../lib/format";
 
 interface DownloadsPageProps {
   downloads: Download[];
@@ -228,6 +228,27 @@ export function DownloadsPage({
         .reduce((total, d) => total + d.speedBps, 0),
     [downloads],
   );
+
+  const aggregateProgress = useMemo(() => {
+    let downloadedBytes = 0;
+    let totalBytes = 0;
+    let unknownSizeCount = 0;
+    for (const download of downloads) {
+      if (!["queued", "downloading", "paused"].includes(download.status)) continue;
+      if (download.totalBytes && download.totalBytes > 0) {
+        totalBytes += download.totalBytes;
+        downloadedBytes += Math.min(download.downloadedBytes, download.totalBytes);
+      } else {
+        unknownSizeCount += 1;
+      }
+    }
+    return {
+      downloadedBytes,
+      totalBytes,
+      unknownSizeCount,
+      percent: totalBytes > 0 ? Math.round((downloadedBytes / totalBytes) * 100) : null,
+    };
+  }, [downloads]);
 
   const visibleDownloads = useMemo(() => {
     const needle = deferredSearch.trim().toLowerCase();
@@ -653,11 +674,30 @@ export function DownloadsPage({
           <span className="statusbar-label">Total speed</span>
           <span className="speed-pill">{formatSpeed(totalSpeed)}</span>
         </div>
-        <div className="statusbar-label truncate">
-          {summary.active > 0
-            ? `${summary.active} active`
-            : `${summary.completed} completed`}
-        </div>
+        {summary.active > 0 && aggregateProgress.percent != null ? (
+          <div
+            className="queue-progress-summary"
+            aria-label={`Queue progress ${aggregateProgress.percent} percent, ${formatBytes(aggregateProgress.downloadedBytes)} of ${formatBytes(aggregateProgress.totalBytes)}`}
+          >
+            <span
+              className="queue-progress-track"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={aggregateProgress.percent}
+            >
+              <span style={{ width: `${aggregateProgress.percent}%` }} />
+            </span>
+            <span className="statusbar-label truncate">
+              {aggregateProgress.percent}% · {formatBytes(aggregateProgress.downloadedBytes)} of {formatBytes(aggregateProgress.totalBytes)}
+              {aggregateProgress.unknownSizeCount > 0 ? ` · ${aggregateProgress.unknownSizeCount} unknown` : ""}
+            </span>
+          </div>
+        ) : (
+          <div className="statusbar-label truncate">
+            {summary.active > 0 ? `${summary.active} active · sizes pending` : `${summary.completed} completed`}
+          </div>
+        )}
       </footer>
 
       {dragActive ? (
