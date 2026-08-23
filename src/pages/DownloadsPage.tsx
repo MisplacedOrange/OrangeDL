@@ -69,18 +69,34 @@ const sortOptions: Array<{ id: SortId; label: string }> = [
   { id: "progress", label: "Progress" },
 ];
 
+function readStoredValue(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function storeValue(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Persistence is optional; keep the queue usable for this session.
+  }
+}
+
 function storedSort(): SortId {
-  const value = window.localStorage.getItem("orangedl.downloadSort");
+  const value = readStoredValue("orangedl.downloadSort");
   return sortOptions.some((option) => option.id === value) ? value as SortId : "newest";
 }
 
 function storedCompactMode(): boolean {
-  return window.localStorage.getItem("orangedl.compactDownloads") === "true";
+  return readStoredValue("orangedl.compactDownloads") === "true";
 }
 
 function storedPinnedIds(): Set<string> {
   try {
-    const value = JSON.parse(window.localStorage.getItem("orangedl.pinnedDownloads") ?? "[]");
+    const value = JSON.parse(readStoredValue("orangedl.pinnedDownloads") ?? "[]");
     return new Set(Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : []);
   } catch {
     return new Set();
@@ -314,15 +330,15 @@ export function DownloadsPage({
   // --- Effects ---------------------------------------------------------------
 
   useEffect(() => {
-    window.localStorage.setItem("orangedl.downloadSort", sort);
+    storeValue("orangedl.downloadSort", sort);
   }, [sort]);
 
   useEffect(() => {
-    window.localStorage.setItem("orangedl.compactDownloads", String(compact));
+    storeValue("orangedl.compactDownloads", String(compact));
   }, [compact]);
 
   useEffect(() => {
-    window.localStorage.setItem("orangedl.pinnedDownloads", JSON.stringify([...pinnedIds]));
+    storeValue("orangedl.pinnedDownloads", JSON.stringify([...pinnedIds]));
   }, [pinnedIds]);
 
   useEffect(() => {
