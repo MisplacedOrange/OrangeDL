@@ -1,0 +1,4 @@
+# Request a review from the repository owner for every pull request.
+# GitHub reads this file from the base branch and does not block auto-merge
+# unless branch protection requires a code-owner review.
+* @MisplacedOrange
