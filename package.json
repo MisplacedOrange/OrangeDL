@@ -30,10 +30,10 @@
     "@tauri-apps/cli": "^2.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.2",
-    "postcss": "^8.4.49",
+    "@vitejs/plugin-react": "^6.1.2",
+    "postcss": "^8.5.30",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.0.16"
+    "vite": "^8.3.4"
   }
 }
