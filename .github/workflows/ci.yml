@@ -109,51 +109,7 @@ jobs:
       - name: Rust security audit (bootstrapper)
         run: cargo audit --file bootstrapper/Cargo.lock
 
-      # High/critical production advisories fail the job. The full tree is
-      # audited too; GHSA-vfj7-8cjw-p6xm (braces) is the only accepted high
-      # finding: every published braces release is affected, and it is only
-      # reached through tailwindcss 3's build-time file watcher. Tailwind 4
-      # drops that chain, but it is a breaking frontend migration.
+      # Tailwind 4 removed the tailwindcss 3 file watcher that pulled in braces
+      # (GHSA-vfj7-8cjw-p6xm), so the previous allowlist is no longer needed.
       - name: npm security audit
-        run: |
-          npm audit --omit=dev --audit-level=high
-          node <<'EOF'
-          const {execFileSync} = require("node:child_process");
-          let raw = "";
-          try {
-            raw = execFileSync("npm", ["audit", "--json"], {encoding: "utf8"});
-          } catch (error) {
-            raw = error.stdout ? error.stdout.toString() : "";
-            if (!raw) {
-              throw error;
-            }
-          }
-          const report = JSON.parse(raw);
-          const allowed = new Set(["GHSA-vfj7-8cjw-p6xm"]);
-          const seen = new Set();
-          const blocking = [];
-          for (const info of Object.values(report.vulnerabilities || {})) {
-            for (const via of info.via || []) {
-              if (!via || typeof via !== "object") continue;
-              if (via.severity !== "high" && via.severity !== "critical") continue;
-              const ghsa = String(via.url || "").split("/").pop();
-              if (allowed.has(ghsa)) {
-                seen.add(ghsa);
-                continue;
-              }
-              blocking.push(`${via.name}: ${ghsa} ${via.title}`);
-            }
-          }
-          if (blocking.length) {
-            console.error("High npm advisories outside the documented allowlist:");
-            for (const line of blocking) console.error(`- ${line}`);
-            process.exit(1);
-          }
-          for (const id of allowed) {
-            if (!seen.has(id)) {
-              console.error(`Allowlist entry ${id} is stale; remove it once the advisory is gone.`);
-              process.exit(1);
-            }
-          }
-          console.log("npm audit: no undocumented high or critical advisories.");
-          EOF
+        run: npm audit --audit-level=high

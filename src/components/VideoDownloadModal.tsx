@@ -178,7 +178,7 @@ export function VideoDownloadModal({
                     <img
                       src={info.thumbnailUrl}
                       alt=""
-                      className="h-16 w-28 rounded object-cover flex-shrink-0"
+                      className="h-16 w-28 rounded-sm object-cover shrink-0"
                     />
                   )}
                   <div className="min-w-0">
