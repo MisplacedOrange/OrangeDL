@@ -1540,7 +1540,7 @@ async fn compute_sha256(path: &Path) -> Result<String> {
         hasher.update(&buffer[..read]);
     }
 
-    Ok(format!("{:x}", hasher.finalize()))
+    Ok(hex::encode(hasher.finalize()))
 }
 
 fn normalize_sha256(value: &str) -> Result<String> {
