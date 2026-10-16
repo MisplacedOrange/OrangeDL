@@ -5,15 +5,21 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    reviewers:
+      - "MisplacedOrange"
 
   - package-ecosystem: "cargo"
     directory: "/src-tauri"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    reviewers:
+      - "MisplacedOrange"
 
   - package-ecosystem: "cargo"
     directory: "/bootstrapper"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    reviewers:
+      - "MisplacedOrange"

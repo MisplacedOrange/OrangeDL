@@ -1,0 +1,49 @@
+name: Request Review
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  request-reviewer:
+    name: Request MisplacedOrange
+    if: github.event.pull_request.user.login != 'MisplacedOrange' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      # pull_request_target keeps a write token on Dependabot PRs. This job
+      # does not check out pull request code.
+      - name: Request review from MisplacedOrange
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const reviewer = "MisplacedOrange";
+            const pullRequest = context.payload.pull_request;
+            const alreadyRequested = (pullRequest.requested_reviewers || [])
+              .some((person) => person.login === reviewer);
+            if (alreadyRequested) {
+              core.info(`${reviewer} is already a requested reviewer.`);
+              return;
+            }
+            try {
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pullRequest.number,
+                reviewers: [reviewer],
+              });
+            } catch (error) {
+              const message = error.message || String(error);
+              if (/already a requested reviewer|pull request author/i.test(message)) {
+                core.info(message);
+                return;
+              }
+              core.setFailed(`Failed to request review: ${message}`);
+            }

@@ -193,11 +193,13 @@ pub async fn download_ytdlp_binary(app: &AppHandle, client: &Client) -> Result<P
         .bytes()
         .await?;
 
-    let expected = fetch_expected_sha256(client, asset_name).await.ok_or_else(|| {
-        MediaError::App(
-            "could not verify yt-dlp checksum — SHA2-256SUMS file unavailable".to_owned(),
-        )
-    })?;
+    let expected = fetch_expected_sha256(client, asset_name)
+        .await
+        .ok_or_else(|| {
+            MediaError::App(
+                "could not verify yt-dlp checksum — SHA2-256SUMS file unavailable".to_owned(),
+            )
+        })?;
     let actual = format!("{:x}", Sha256::digest(&bytes));
     if actual != expected {
         return Err(MediaError::App(format!(

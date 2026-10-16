@@ -305,8 +305,7 @@ impl DownloadManager {
             database::system_download_dir(&self.app)?,
         )
         .await?;
-        database::set_default_download_directory(&self.pool, &directory.to_string_lossy())
-            .await?;
+        database::set_default_download_directory(&self.pool, &directory.to_string_lossy()).await?;
         database::set_default_speed_limit(
             &self.pool,
             settings.default_speed_limit_bps.filter(|v| *v > 0),
@@ -2039,7 +2038,11 @@ fn is_blocked_ip(ip: IpAddr) -> bool {
             let is_unique_local = octets[0] & 0xfe == 0xfc; // fc00::/7
             let is_link_local = octets[0] == 0xfe && (octets[1] & 0xc0) == 0x80; // fe80::/10
 
-            v6.is_loopback() || v6.is_unspecified() || v6.is_multicast() || is_unique_local || is_link_local
+            v6.is_loopback()
+                || v6.is_unspecified()
+                || v6.is_multicast()
+                || is_unique_local
+                || is_link_local
         }
     }
 }
