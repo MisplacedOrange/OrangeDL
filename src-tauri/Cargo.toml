@@ -22,7 +22,10 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "sqlite"] }
+# crates.io sqlx 0.9.0 still caps libsqlite3-sys at <0.38 (RUSTSEC-2026-0459,
+# patched in >=0.39.0). This rev is the upstream 0.9.0 commit that raises the
+# cap to <0.40. `runtime-tokio-rustls` was split in 0.9.
+sqlx = { git = "https://github.com/launchbadge/sqlx", rev = "10462fa4414c6c7f1ed1d39bb31678e3b726878c", version = "0.9.0", default-features = false, features = ["runtime-tokio", "tls-rustls", "sqlite"] }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-deep-link = "2"

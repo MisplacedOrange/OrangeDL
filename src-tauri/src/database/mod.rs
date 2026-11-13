@@ -148,7 +148,7 @@ pub async fn migrate(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-async fn add_column_if_missing(pool: &SqlitePool, sql: &str) -> Result<()> {
+async fn add_column_if_missing(pool: &SqlitePool, sql: &'static str) -> Result<()> {
     match sqlx::query(sql).execute(pool).await {
         Ok(_) => Ok(()),
         Err(sqlx::Error::Database(e)) if e.message().contains("duplicate column") => Ok(()),
@@ -789,7 +789,8 @@ pub async fn cleanup_history(
                 .collect::<Vec<_>>()
                 .join(", ");
             let sql = format!("DELETE FROM downloads WHERE id IN ({placeholders})");
-            let mut query = sqlx::query(&sql);
+            // Placeholders are only `?`; the ids are bound, not interpolated.
+            let mut query = sqlx::query(sqlx::AssertSqlSafe(sql));
             for id in &ids {
                 query = query.bind(id);
             }
