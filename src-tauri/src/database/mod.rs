@@ -148,7 +148,7 @@ pub async fn migrate(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-async fn add_column_if_missing(pool: &SqlitePool, sql: &str) -> Result<()> {
+async fn add_column_if_missing(pool: &SqlitePool, sql: &'static str) -> Result<()> {
     match sqlx::query(sql).execute(pool).await {
         Ok(_) => Ok(()),
         Err(sqlx::Error::Database(e)) if e.message().contains("duplicate column") => Ok(()),
@@ -785,15 +785,14 @@ pub async fn cleanup_history(
         .await?;
 
         if !ids.is_empty() {
-            let placeholders = std::iter::repeat_n("?", ids.len())
-                .collect::<Vec<_>>()
-                .join(", ");
-            let sql = format!("DELETE FROM downloads WHERE id IN ({placeholders})");
-            let mut query = sqlx::query(&sql);
+            let mut query =
+                sqlx::QueryBuilder::<sqlx::Sqlite>::new("DELETE FROM downloads WHERE id IN (");
+            let mut separated = query.separated(", ");
             for id in &ids {
-                query = query.bind(id);
+                separated.push_bind(id);
             }
-            query.execute(pool).await?;
+            separated.push_unseparated(")");
+            query.build().execute(pool).await?;
             removed.extend(ids);
         }
     }
