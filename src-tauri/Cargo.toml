@@ -22,7 +22,7 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "sqlite"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls", "sqlite"] }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-deep-link = "2"
@@ -42,3 +42,6 @@ codegen-units = 1
 lto = true
 opt-level = "s"
 strip = true
+
+[patch.crates-io]
+sqlx-sqlite = { path = "vendor/sqlx-sqlite" }
